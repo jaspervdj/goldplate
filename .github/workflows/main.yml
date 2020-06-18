@@ -19,4 +19,4 @@ jobs:
         stack build --system-ghc
     - name: Test
       run: |
-        stack exec -- goldplate --pretty-diff tests/
+        stack exec --system-ghc -- goldplate --pretty-diff tests/

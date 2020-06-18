@@ -6,7 +6,7 @@
     Finished in 0.84s
     Ran 32 specs, 49 executions, 146 asserts, all A-OK!
 
-`goldplate` is a simple black-box [golden test] runner for CLI applications.
+`goldplate` is a simple opaque [golden test] runner for CLI applications.
 You place your test cases in a directory, annotate them with `.goldplate` files,
 and that's it.
 
