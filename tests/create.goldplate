@@ -1,0 +1,12 @@
+{
+    "command": "bash",
+    "stdin": [
+        "mkdir ${SPEC_NAME}",
+        "echo ${SPEC_NAME} >${SPEC_NAME}/file"
+    ],
+    "asserts": [
+        {"exit_code": 0},
+        {"created_file": "${SPEC_NAME}/file", "contents": "${SPEC_NAME}.file"},
+        {"created_directory": "${SPEC_NAME}"}
+    ]
+}

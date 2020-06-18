@@ -90,7 +90,7 @@ instance A.FromJSON Spec where
     parseJSON = A.withObject "FromJSON Spec" $ \o -> Spec
         <$> o A..:? "input_files"
         <*> o A..:  "command"
-        <*> o A..:  "arguments"
+        <*> o A..:? "arguments" A..!= []
         <*> (maybe [] A.unMultiple <$> o A..:? "stdin")
         <*> (fromMaybe [] <$> o A..:? "environment")
         <*> o A..:  "asserts"
@@ -443,14 +443,13 @@ readFileOrEmpty fp = do
     if exists then B.readFile fp else return B.empty
 
 --------------------------------------------------------------------------------
-
--- | Recursively finds all '.spec' files in bunch of files or directories.
+-- | Recursively finds all '.goldplate' files in bunch of files or directories.
 findSpecs :: [FilePath] -> IO [FilePath]
 findSpecs fps = fmap concat $ forM fps $ \fp -> do
     isDir <- doesDirectoryExist fp
     case isDir of
         False -> return [fp]
-        True  -> Glob.globDir1 (Glob.compile "**/*.spec") fp
+        True  -> Glob.globDir1 (Glob.compile "**/*.goldplate") fp
 
 --------------------------------------------------------------------------------
 -- | Perform a glob match in the current directory.

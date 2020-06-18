@@ -1,0 +1,7 @@
+{
+    "command": "bash",
+    "arguments": ["-c", "exit 3"],
+    "asserts": [
+        {"exit_code": 3}
+    ]
+}
