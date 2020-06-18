@@ -56,6 +56,27 @@ View example: [`tests/cat.goldplate`](tests/cat.goldplate)
 You can pass one or multiple lines of input to the command by using the `stdin`
 field.
 
+### Setting environment variables
+
+View example: [`tests/env.goldplate`](tests/env.goldplate)
+
+The `environment` field can be used to set environment variables for the
+program.
+
+### Globbing input files
+
+View example: [`tests/glob.goldplate`](tests/glob.goldplate)
+
+`.goldplate` files are fairly small but if you have a whole directory of files
+that you just want to run the same command on, they can get very repetitive.
+This is why `goldplate` provides a simple way to pull in multiple input files.
+
+If the `input_files` field is set to a glob, all asserts will be ran for _every_
+matching input file.  `goldplate` will set the following variables:
+
+ -  `${SPEC_INPUT_FILE}`: the path to the input file
+ -  `${SPEC_INPUT_NAME}`: the input file without extension
+
 ### Post processing: find and replace
 
 View example: [`tests/replace.goldplate`](tests/replace.goldplate)
@@ -63,5 +84,22 @@ View example: [`tests/replace.goldplate`](tests/replace.goldplate)
 Sometimes you may want to do a find-and-replace on the actual output, for
 example to filter out timestamps or other information that you do not expect to
 match up against the expected output.
+
+### Post processing: prettify JSON
+
+View example: [`tests/prettify-json.goldplate`](tests/prettify-json.goldplate)
+
+Many modern CLI tools output JSON.  You can use the `prettify_json` post
+processor to make sure the JSON is converted to a normalized form with sorted
+keys and consistent indentation.
+
+### Created files and directories
+
+View example: [`tests/create.goldplate`](tests/create.goldplate)
+
+`goldplate` is geared towards checking the `stdout` and `stderr` outputs of a
+program, but you can also check that files were created with specific contents.
+If you do this, `goldplate` will remove these files and directories afterwards
+to leave a clean repository behind.
 
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests
