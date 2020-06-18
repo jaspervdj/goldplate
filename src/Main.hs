@@ -422,7 +422,7 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                 ]
         when (envFix env && actual1 /= expected) $ do
             B.writeFile expectedPath actual1
-            envLogger env Debug
+            envLogger env Message
                 [executionHeader execution ++ "fixed " ++ expectedPath]
 
     assertTrue :: Bool -> String -> IO ()
