@@ -1,4 +1,4 @@
-# goldplate
+# goldplate 🏅
 
     $ goldplate -j2 tests/
     Found 32 specs
