@@ -1,0 +1,20 @@
+name: CI
+on: ['push']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-haskell@v1.1
+    - uses: actions/cache@v1
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-v1-stack
+    - name: Build
+      run: |
+        stack build --system-ghc
+    - name: Test
+      run: |
+        stack exec -- goldplate --pretty-diff tests/
