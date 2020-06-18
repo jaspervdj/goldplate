@@ -23,9 +23,9 @@ import           Data.Algorithm.DiffOutput
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy      as BL
 import           Data.Function             (on)
+import qualified Data.HashMap.Strict       as HMS
 import qualified Data.IORef                as IORef
 import qualified Data.List                 as List
-import           Data.Maybe                (fromMaybe)
 import qualified Data.Text                 as T
 import qualified Data.Text                 as Text
 import qualified Data.Text.Encoding        as T
@@ -92,7 +92,7 @@ instance A.FromJSON Spec where
         <*> o A..:  "command"
         <*> o A..:? "arguments" A..!= []
         <*> (maybe [] A.unMultiple <$> o A..:? "stdin")
-        <*> (fromMaybe [] <$> o A..:? "environment")
+        <*> (maybe [] HMS.toList <$> o A..:? "environment")
         <*> o A..:  "asserts"
 
 --------------------------------------------------------------------------------
