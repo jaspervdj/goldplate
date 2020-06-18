@@ -13,7 +13,7 @@ jobs:
     - uses: actions/cache@v1
       with:
         path: ~/.stack
-        key: ${{ runner.os }}-v1-stack
+        key: "${{ runner.os }}-v2-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}"
     - name: Build
       run: |
         stack build --system-ghc
