@@ -1,0 +1,9 @@
+{
+    "command": "cat",
+    "input_files": "glob-*.txt",
+    "arguments": ["${SPEC_INPUT_FILE}"],
+    "asserts": [
+        {"exit_code": 0},
+        {"stdout": "${SPEC_INPUT_NAME}.stdout"}
+    ]
+}
