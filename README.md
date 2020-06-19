@@ -10,6 +10,9 @@
 place your test cases in a directory, annotate them with `.goldplate` files, and
 that's it.  It is completely language agnostic.
 
+At [Fugue](https://fugue.co), we've been using internal versions of this tool
+since 2016, so it should be pretty stable.
+
 ## Tutorial
 
 You can run `goldplate` by pointing it to either specific `.goldplate` files,
