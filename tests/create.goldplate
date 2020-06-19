@@ -1,12 +1,15 @@
 {
     "command": "bash",
     "stdin": [
-        "mkdir ${SPEC_NAME}",
-        "echo ${SPEC_NAME} >${SPEC_NAME}/file"
+        "mkdir ${GOLDPLATE_NAME}",
+        "echo ${GOLDPLATE_NAME} >${GOLDPLATE_NAME}/file"
     ],
     "asserts": [
         {"exit_code": 0},
-        {"created_file": "${SPEC_NAME}/file", "contents": "${SPEC_NAME}.file"},
-        {"created_directory": "${SPEC_NAME}"}
+        {
+            "created_file": "${GOLDPLATE_NAME}/file",
+            "contents": "${GOLDPLATE_NAME}.file"
+        },
+        {"created_directory": "${GOLDPLATE_NAME}"}
     ]
 }

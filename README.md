@@ -34,7 +34,7 @@ test has two asserts:
 
 1.  We verify that the exit code is 0 (success).
 2.  We check the `stdout` (output) of the command against the file
-    `${SPEC_NAME}.stdout`.  `SPEC_NAME` is the name of the specification without
+    `${GOLDPLATE_NAME}.stdout`.  `GOLDPLATE_NAME` is the name of the specification without
     the extension; so our expected output lives in
     [`tests/echo.stdout`](tests/echo.stdout) in this case.
 
@@ -74,8 +74,8 @@ This is why `goldplate` provides a simple way to pull in multiple input files.
 If the `input_files` field is set to a glob, all asserts will be ran for _every_
 matching input file.  `goldplate` will set the following variables:
 
- -  `${SPEC_INPUT_FILE}`: the path to the input file
- -  `${SPEC_INPUT_NAME}`: the input file without extension
+ -  `${GOLDPLATE_INPUT_FILE}`: the path to the input file
+ -  `${GOLDPLATE_INPUT_NAME}`: the input file without extension
 
 ### Post processing: find and replace
 
@@ -101,5 +101,30 @@ View example: [`tests/create.goldplate`](tests/create.goldplate)
 program, but you can also check that files were created with specific contents.
 If you do this, `goldplate` will remove these files and directories afterwards
 to leave a clean repository behind.
+
+## Reference
+
+### Syntax
+
+Environment variables can be spliced into the configuration using `${VAR}`
+syntax within strings.
+
+### Environment variables
+
+The test is always executed in the directory that holds the `.goldplate` file.
+`goldplate` will always set the following environment variables:
+
+ -  `GOLDPLATE_FILE`: The filename of the `.goldplate` file, e.g.
+    `echo.goldplate`.
+ -  `GOLDPLATE_NAME`: The filename of the `.goldplate` file without the
+    extension, e.g. `echo`.
+
+When dealing with [multiple input files](#globbing-input-files), the following
+additional variables are set:
+
+ -  `GOLDPLATE_INPUT_FILE`: The input file name, relative to the current
+    directory.
+ -  `GOLDPLATE_INPUT_NAME`: The same as `GOLDPLATE_INPUT_FILE` but without
+    any extensions.
 
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests

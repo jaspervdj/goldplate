@@ -3,6 +3,6 @@
     "arguments": ["{\"b\": 2, \"a\": 1}"],
     "asserts": [
         {"exit_code": 0},
-        {"stdout": "${SPEC_NAME}.json", "post_process": "prettify_json"}
+        {"stdout": "${GOLDPLATE_NAME}.json", "post_process": "prettify_json"}
     ]
 }

@@ -236,7 +236,9 @@ specExecutions specPath spec = do
     env0 <- getEnvironment
     let env1 =
             List.nubBy ((==) `on` fst) $
-                ("SPEC_NAME", specName) : (sEnv spec ++ env0)
+                ("GOLDPLATE_NAME", specName) :
+                ("GOLDPLATE_FILE", specBaseName) :
+                sEnv spec ++ env0
 
     -- Get a list of concrete input files (a list maybes).
     concreteInputFiles <- case sInputFiles spec of
@@ -254,8 +256,8 @@ specExecutions specPath spec = do
         let env2 = case mbInputFile of
                 Nothing        -> env1
                 Just inputFile ->
-                    ("SPEC_INPUT_FILE", inputFile) :
-                    ("SPEC_INPUT_NAME", dropExtension inputFile) :
+                    ("GOLDPLATE_INPUT_FILE", inputFile) :
+                    ("GOLDPLATE_INPUT_NAME", dropExtension inputFile) :
                     env1
 
         -- Return execution after doing some splicing.

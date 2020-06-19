@@ -3,6 +3,6 @@
     "arguments": ["Hello, world!"],
     "asserts": [
         {"exit_code": 0},
-        {"stdout": "${SPEC_NAME}.stdout"}
+        {"stdout": "${GOLDPLATE_NAME}.stdout"}
     ]
 }
