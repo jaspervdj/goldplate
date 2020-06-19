@@ -6,9 +6,9 @@
     Finished in 0.84s
     Ran 32 specs, 49 executions, 146 asserts, all A-OK!
 
-`goldplate` is a simple opaque [golden test] runner for CLI applications.
-You place your test cases in a directory, annotate them with `.goldplate` files,
-and that's it.
+`goldplate` is a simple opaque [golden test] runner for CLI applications.  You
+place your test cases in a directory, annotate them with `.goldplate` files, and
+that's it.  It is completely language agnostic.
 
 ## Tutorial
 
@@ -34,8 +34,8 @@ test has two asserts:
 
 1.  We verify that the exit code is 0 (success).
 2.  We check the `stdout` (output) of the command against the file
-    `${GOLDPLATE_NAME}.stdout`.  `GOLDPLATE_NAME` is the name of the specification without
-    the extension; so our expected output lives in
+    `${GOLDPLATE_NAME}.stdout`.  `GOLDPLATE_NAME` is the name of the
+    specification without the extension; so our expected output lives in
     [`tests/echo.stdout`](tests/echo.stdout) in this case.
 
 We can check that our asserts are correct:
