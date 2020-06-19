@@ -1,4 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
@@ -8,6 +11,7 @@
 module Main
     ( main
     ) where
+
 
 import           Control.Applicative       ((<|>))
 import           Control.Concurrent        (threadDelay)
@@ -51,8 +55,7 @@ import           Text.Printf               (printf)
 import qualified Text.Regex.PCRE.Simple    as Pcre
 
 
---------------------------------------------------------------------------------
-
+-- | Environment for splicing in things.
 type SpliceEnv = [(String, String)]
 
 data MissingEnvVar = MissingEnvVar String
@@ -75,18 +78,18 @@ splice env = go
             (_, _)          -> fmap ((xs ++ "${") ++) (go ys)
         (xs, ys) -> Right $ xs ++ ys
 
---------------------------------------------------------------------------------
 
-data Spec = Spec
-    { sInputFiles :: !(Maybe String)
-    , sCommand    :: !String
-    , sArguments  :: ![String]
-    , sStdin      :: ![String]
-    , sEnv        :: ![(String, String)]
-    , sAsserts    :: ![Assert]
-    }
+-- | The type parameter indicates the fields that we allow splicing over.
+data Spec a = Spec
+    { sInputFiles :: !(Maybe a)
+    , sCommand    :: !a
+    , sArguments  :: ![a]
+    , sStdin      :: ![a]
+    , sEnv        :: ![(a, a)]
+    , sAsserts    :: ![Assert a]
+    } deriving (Foldable, Functor, Traversable)
 
-instance A.FromJSON Spec where
+instance A.FromJSON (Spec String) where
     parseJSON = A.withObject "FromJSON Spec" $ \o -> Spec
         <$> o A..:? "input_files"
         <*> o A..:  "command"
@@ -95,14 +98,8 @@ instance A.FromJSON Spec where
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
         <*> o A..:  "asserts"
 
---------------------------------------------------------------------------------
 
-newtype PostProcess = PostProcess [PostProcessStep]
-    deriving (Monoid, Semigroup)
-
-instance A.FromJSON PostProcess where
-    parseJSON val@(A.Array _) = PostProcess <$> A.parseJSON val
-    parseJSON val             = PostProcess . return <$> A.parseJSON val
+type PostProcess = [PostProcessStep]
 
 data PostProcessStep
     = PrettifyJsonStep
@@ -125,7 +122,7 @@ instance A.FromJSON PostProcessStep where
     parseJSON _ = mzero
 
 postProcess :: PostProcess -> B.ByteString -> B.ByteString
-postProcess (PostProcess ps) bs0 = List.foldl' (flip postProcessStep) bs0 ps
+postProcess ps bs0 = List.foldl' (flip postProcessStep) bs0 ps
 
 postProcessStep :: PostProcessStep -> B.ByteString -> B.ByteString
 postProcessStep PrettifyJsonStep bs = maybe bs
@@ -142,63 +139,51 @@ postProcessStep (ReplaceStep regex replacement) bs =
     Pcre.replaceAll regex replacement $ T.decodeUtf8 bs
 
 
---------------------------------------------------------------------------------
-
-data Assert
+-- | Asserts that can happen after an execution.
+data Assert a
     = ExitCodeAssert !Int
     | StdoutAssert
-        { stdoutFilePath    :: !FilePath
+        { stdoutFilePath    :: !a
         , stdoutPostProcess :: !PostProcess
         }
     | StderrAssert
-        { stderrFilePath    :: !FilePath
+        { stderrFilePath    :: !a
         , stderrPostProcess :: !PostProcess
         }
     | CreatedFileAssert
-        { createdFilePath        :: !FilePath
-        , createdFileContents    :: !(Maybe FilePath)
+        { createdFilePath        :: !a
+        , createdFileContents    :: !(Maybe a)
         , createdFilePostProcess :: !PostProcess
         }
     | CreatedDirectoryAssert
-        { createdDirectoryPath   :: !FilePath
+        { createdDirectoryPath   :: !a
         }
+    deriving (Foldable, Functor, Traversable)
 
-instance A.FromJSON Assert where
+instance A.FromJSON a => A.FromJSON (Assert a) where
     parseJSON = A.withObject "FromJSON Assert" $ \o ->
         (ExitCodeAssert <$> o A..: "exit_code") <|>
         (StdoutAssert
-            <$> o A..:  "stdout"
-            <*> o A..:? "post_process" A..!= mempty) <|>
+            <$> o A..: "stdout"
+            <*> parsePostProcess o) <|>
         (StderrAssert
-            <$> o A..:  "stderr"
-            <*> o A..:? "post_process" A..!= mempty) <|>
+            <$> o A..: "stderr"
+            <*> parsePostProcess o) <|>
         (CreatedFileAssert
-            <$> o A..:  "created_file"
+            <$> o A..: "created_file"
             <*> o A..:? "contents"
-            <*> o A..:? "post_process" A..!= mempty) <|>
+            <*> parsePostProcess o) <|>
         (CreatedDirectoryAssert
-            <$> o A..:  "created_directory")
+            <$> o A..: "created_directory")
+      where
+        parsePostProcess o = maybe [] A.unMultiple <$> o A..:? "post_process"
 
-describeAssert :: Assert -> String
+describeAssert :: Assert a -> String
 describeAssert (ExitCodeAssert     _)     = "exit_code"
 describeAssert (StdoutAssert       _ _)   = "stdout"
 describeAssert (StderrAssert       _ _)   = "stderr"
 describeAssert (CreatedFileAssert  _ _ _) = "created_file"
 describeAssert (CreatedDirectoryAssert _) = "created_directory"
-
-spliceAssert :: SpliceEnv -> Assert -> Either MissingEnvVar Assert
-spliceAssert _   (ExitCodeAssert n) = return $ ExitCodeAssert n
-spliceAssert env (StdoutAssert fp pp) =
-    StdoutAssert <$> splice env fp <*> pure pp
-spliceAssert env (StderrAssert fp pp) =
-    StderrAssert <$> splice env fp <*> pure pp
-spliceAssert env (CreatedFileAssert fp fc pp) =
-    CreatedFileAssert <$> splice env fp <*> traverse (splice env) fc <*> pure pp
-
-spliceAssert env (CreatedDirectoryAssert fp) =
-    CreatedDirectoryAssert <$> splice env fp
-
---------------------------------------------------------------------------------
 
 data Verbosity = Debug | Message | Error
     deriving (Eq, Ord)
@@ -212,21 +197,19 @@ makeLogger verbose = do
         unless (not verbose && verbosity == Debug) $
             MVar.withMVar lock $ \() -> mapM_ (IO.hPutStrLn IO.stderr) msgs
 
---------------------------------------------------------------------------------
-
 data Execution = Execution
     { executionInputFile :: Maybe FilePath
     , executionCommand   :: FilePath
     , executionArguments :: [String]
     , executionStdin     :: [String]
-    , executionAsserts   :: [Assert]
-    , executionSpliceEnv :: SpliceEnv
+    , executionAsserts   :: [Assert String]
+    , executionEnv       :: SpliceEnv
     , executionSpecPath  :: FilePath
     , executionSpecName  :: String
     , executionDirectory :: FilePath
     }
 
-specExecutions :: FilePath -> Spec -> IO [Execution]
+specExecutions :: FilePath -> Spec String -> IO [Execution]
 specExecutions specPath spec = do
     let specBaseName  = takeBaseName  specPath
         specDirectory = takeDirectory specPath
@@ -262,16 +245,18 @@ specExecutions specPath spec = do
 
         -- Return execution after doing some splicing.
         hoistEither $ do
-            let executionInputFile = mbInputFile
-            executionCommand   <- splice env2 (sCommand spec)
-            executionArguments <- traverse (splice env2) (sArguments spec)
-            executionStdin     <- traverse (splice env2) (sStdin spec)
-            executionAsserts   <- traverse (spliceAssert env2) (sAsserts spec)
-            let executionSpliceEnv = env2
-                executionSpecPath  = specPath
-                executionSpecName  = specName
-                executionDirectory = specDirectory
-            return Execution {..}
+            spec' <- traverse (splice env2) spec
+            pure Execution
+                { executionInputFile = mbInputFile
+                , executionCommand   = sCommand spec'
+                , executionArguments = sArguments spec'
+                , executionStdin     = sStdin spec'
+                , executionAsserts   = sAsserts spec'
+                , executionEnv       = env2
+                , executionSpecPath  = specPath
+                , executionSpecName  = specName
+                , executionDirectory = specDirectory
+                }
   where
     hoistEither :: Either MissingEnvVar a -> IO a
     hoistEither = either throwIO return
@@ -282,9 +267,6 @@ executionHeader execution =
     case executionInputFile execution of
         Nothing -> ": "
         Just fp -> " (" ++ fp ++ "): "
-
-
---------------------------------------------------------------------------------
 
 data Env = Env
     { envLogger        :: !Logger
@@ -311,7 +293,7 @@ runExecution env execution@Execution {..} = do
 
     -- Create a "CreateProcess" description.
     let createProcess = (Process.proc executionCommand executionArguments)
-            { Process.env     = Just executionSpliceEnv
+            { Process.env     = Just executionEnv
             , Process.cwd     = Just executionDirectory
             , Process.std_in  = Process.CreatePipe
             , Process.std_out = Process.CreatePipe
@@ -350,10 +332,9 @@ runExecution env execution@Execution {..} = do
         forM_ executionAsserts $ runAssert env execution executionResult
         envLogger env Debug [executionHeader execution ++ "done"]
 
---------------------------------------------------------------------------------
 
 -- | Check an assertion.
-runAssert :: Env -> Execution -> ExecutionResult -> Assert -> IO ()
+runAssert :: Env -> Execution -> ExecutionResult -> Assert String -> IO ()
 runAssert env execution@Execution {..} ExecutionResult {..} assert =
     case assert of
         ExitCodeAssert expectedExitCode -> do
@@ -444,7 +425,7 @@ readFileOrEmpty fp = do
     exists <- doesFileExist fp
     if exists then B.readFile fp else return B.empty
 
---------------------------------------------------------------------------------
+
 -- | Recursively finds all '.goldplate' files in bunch of files or directories.
 findSpecs :: [FilePath] -> IO [FilePath]
 findSpecs fps = fmap concat $ forM fps $ \fp -> do
@@ -453,7 +434,7 @@ findSpecs fps = fmap concat $ forM fps $ \fp -> do
         False -> return [fp]
         True  -> Glob.globDir1 (Glob.compile "**/*.goldplate") fp
 
---------------------------------------------------------------------------------
+
 -- | Perform a glob match in the current directory.
 --
 -- This is a drop-in replacement for `glob` from the `Glob` library, which has a
@@ -467,8 +448,6 @@ globCurrentDir pattern =
         _          -> fp0
 
 
---------------------------------------------------------------------------------
-
 data Options = Options
     { oPaths      :: [FilePath]
     , oVerbose    :: Bool
@@ -477,6 +456,7 @@ data Options = Options
     , oFix        :: Bool
     , oJobs       :: Int
     }
+
 
 parseOptions :: OA.Parser Options
 parseOptions = Options
@@ -506,7 +486,6 @@ parserInfo = OA.info (OA.helper <*> parseOptions) $
     OA.fullDesc <>
     OA.header ("goldplate v" <> showVersion version)
 
---------------------------------------------------------------------------------
 
 -- | Spawn a worker thread that takes workloads from a shared pool.
 worker
@@ -520,6 +499,7 @@ worker pool f = do
     case mbWorkload of
         Nothing       -> return ()
         Just workload -> f workload >> worker pool f
+
 
 main :: IO ()
 main = do
@@ -591,6 +571,7 @@ main = do
                 show numExecutions ++ " executions, " ++
                 show asserts ++ " asserts, " ++ show failures ++ " failed."]
             exitFailure
+
 
 showDiffTime :: NominalDiffTime -> String
 showDiffTime dt = printf "%.2fs" (fromRational (toRational dt) :: Double)
