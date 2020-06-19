@@ -13,11 +13,19 @@ that's it.  It is completely language agnostic.
 At [Fugue](https://fugue.co), we've been using internal versions of this tool
 since 2016, so it should be pretty stable.
 
+## Installation
+
+### Using stack
+
+1.  Install [stack] for your platform.
+2.  Clone this repository and `cd` into it.
+3.  Run `stack install`.
+4.  Make sure `$HOME/.local/bin` is in your `$PATH`.
+
 ## Tutorial
 
-You can run `goldplate` by pointing it to either specific `.goldplate` files,
-or directories that contain `.goldplate` files.  To invoke `goldplate` in this
-repository, we just pass in the [`tests/`](tests/) directory:
+You can follow along with the tutorial by cloning the repository and running
+this command:
 
     $ goldplate tests
 
@@ -131,3 +139,4 @@ additional variables are set:
     any extensions.
 
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests
+[stack]: https://docs.haskellstack.org/en/stable/README/
