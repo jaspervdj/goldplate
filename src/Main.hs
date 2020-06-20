@@ -71,12 +71,20 @@ splice :: SpliceEnv -> String -> Either MissingEnvVar String
 splice env = go
   where
     go str = case break (== '$') str of
+        -- Splice
         (xs, '$' : '{' : ys) -> case break (== '}') ys of
             (key, '}' : zs) -> case lookup key env of
                 Nothing  -> Left $ MissingEnvVar key
                 Just val -> fmap ((xs ++ val) ++) (go zs)
-            (_, _)          -> fmap ((xs ++ "${") ++) (go ys)
-        (xs, ys) -> Right $ xs ++ ys
+            (_, _) -> fmap ((xs ++ "${") ++) (go ys)
+        -- Escape
+        (xs, '$' : '$' : ys) ->
+            let (dollars, zs) = break (== '{') ys in
+            if all (== '$') dollars && "{" `List.isPrefixOf` zs
+                then (dollars ++) . ("${" ++) <$> go (drop 1 zs)
+                else (xs ++) . ("$$" ++) <$> go ys
+        (xs, []) -> Right xs
+        (xs, (y : ys)) -> (xs ++) . (y :) <$> (go ys)
 
 
 -- | The type parameter indicates the fields that we allow splicing over.

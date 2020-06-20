@@ -1,0 +1,9 @@
+{
+  "command": "echo",
+  "arguments": ["${VAR}", "$${VAR}", "$$${VAR}", "$$$${VAR}"],
+  "environment": {"VAR": "var"},
+  "asserts": [
+    {"exit_code": 0},
+    {"stdout": "${GOLDPLATE_NAME}.stdout"}
+  ]
+}

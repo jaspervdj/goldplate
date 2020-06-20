@@ -118,7 +118,8 @@ to leave a clean repository behind.
 ### Syntax
 
 Environment variables can be spliced into the configuration using `${VAR}`
-syntax within strings.
+syntax within strings.  To escape this syntax, use `$${VAR}` to get a literal
+`${VAR}`, `$$${VAR}` to get a literal `$${VAR}`, and so on.
 
 ### Environment variables
 
