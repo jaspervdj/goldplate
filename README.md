@@ -6,9 +6,17 @@
     Finished in 0.84s
     Ran 32 specs, 49 executions, 146 asserts, all A-OK!
 
-`goldplate` is a simple opaque [golden test] runner for CLI applications.  You
-place your test cases in a directory, annotate them with `.goldplate` files, and
-that's it.  It is completely language agnostic.
+`goldplate` is a cute and simple opaque [golden test] runner for CLI
+applications.  You place your test cases in a directory, annotate them with
+`.goldplate` files, and that's it.  It is completely language agnostic.
+
+Give `goldplate` a try if:
+
+ -  You are testing a CLI application
+ -  The application produces deterministic output (e.g. compilers, prettifiers,
+    convertors)
+ -  The application is quick to start (a process is created for every test)
+ -  Your output is text-based and not huge in size
 
 At [Fugue](https://fugue.co), we've been using internal versions of this tool
 since 2016, so it should be pretty stable.
