@@ -147,5 +147,18 @@ additional variables are set:
  -  `GOLDPLATE_INPUT_NAME`: The same as `GOLDPLATE_INPUT_FILE` but without
     any extensions.
 
+## Similar projects
+
+A similar project is [smoke].  I think `goldplate` has two major advantages
+over smoke:
+
+ -  It can fix the output files automatically using `--fix`!  This is very
+    useful if you make a change to your tool that affects _a lot_ of test
+    files.  You still need to manually review the diff, but at least you don't
+    need to manually update the specs.
+ -  You can avoid most repetitive configs by using
+    [simple globbing](#globbing-input-files).
+
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests
 [stack]: https://docs.haskellstack.org/en/stable/README/
+[smoke]: https://github.com/SamirTalwar/smoke

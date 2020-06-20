@@ -31,9 +31,7 @@ import qualified Data.HashMap.Strict       as HMS
 import qualified Data.IORef                as IORef
 import qualified Data.List                 as List
 import qualified Data.Text                 as T
-import qualified Data.Text                 as Text
 import qualified Data.Text.Encoding        as T
-import qualified Data.Text.Encoding        as Text
 import           Data.Time                 (NominalDiffTime, diffUTCTime,
                                             getCurrentTime)
 import           Data.Typeable             (Typeable)
@@ -81,7 +79,7 @@ splice env = go
         (xs, '$' : '$' : ys) ->
             let (dollars, zs) = break (== '{') ys in
             if all (== '$') dollars && "{" `List.isPrefixOf` zs
-                then (dollars ++) . ("${" ++) <$> go (drop 1 zs)
+                then (xs ++) . (dollars ++) . ("${" ++) <$> go (drop 1 zs)
                 else (xs ++) . ("$$" ++) <$> go ys
         (xs, []) -> Right xs
         (xs, (y : ys)) -> (xs ++) . (y :) <$> (go ys)
@@ -400,8 +398,8 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                 , show actual1
                 ]
         let diff :: [Diff [String]] = either (const []) id $ do
-                expected' <- Text.unpack <$> Text.decodeUtf8' expected
-                actual1'  <- Text.unpack <$> Text.decodeUtf8' actual1
+                expected' <- T.unpack <$> T.decodeUtf8' expected
+                actual1'  <- T.unpack <$> T.decodeUtf8' actual1
                 return $
                     getGroupedDiff
                         (lines expected')
