@@ -24,12 +24,22 @@ since 2016, so it should be pretty stable.
 
 ## Installation
 
-### Using stack
+Installation through source is done using standard Haskell tooling -- [Cabal]
+and [stack] both work well.
+
+#### Using stack
 
 1.  Install [stack] for your platform.
 2.  Clone this repository and `cd` into it.
 3.  Run `stack install`.
 4.  Make sure `$HOME/.local/bin` is in your `$PATH`.
+
+#### Using Cabal
+
+1.  Install [Cabal] for your platform.
+2.  Clone this repository and `cd` into it.
+3.  Run `cabal install`.
+4.  Make sure `$HOME/.cabal/bin` is in your `$PATH`.
 
 ## Tutorial
 
@@ -160,6 +170,7 @@ over smoke:
  -  You can avoid most repetitive configs by using
     [simple globbing](#globbing-input-files).
 
+[Cabal]: https://www.haskell.org/cabal/
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests
 [stack]: https://docs.haskellstack.org/en/stable/README/
 [smoke]: https://github.com/SamirTalwar/smoke
