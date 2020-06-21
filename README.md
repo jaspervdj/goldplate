@@ -22,24 +22,28 @@ Give `goldplate` a try if:
 At [Fugue](https://fugue.co), we've been using internal versions of this tool
 since 2016, so it should be pretty stable.
 
-## Installation
 
-Installation through source is done using standard Haskell tooling -- [Cabal]
-and [stack] both work well.
+## Table of Contents
 
-#### Using stack
-
-1.  Install [stack] for your platform.
-2.  Clone this repository and `cd` into it.
-3.  Run `stack install`.
-4.  Make sure `$HOME/.local/bin` is in your `$PATH`.
-
-#### Using Cabal
-
-1.  Install [Cabal] for your platform.
-2.  Clone this repository and `cd` into it.
-3.  Run `cabal install`.
-4.  Make sure `$HOME/.cabal/bin` is in your `$PATH`.
+-   [Tutorial](#tutorial)
+    -   [Simple asserts](#simple-asserts)
+    -   [Feeding input on stdin](#feeding-input-on-stdin)
+    -   [Setting environment
+        variables](#setting-environment-variables)
+    -   [Globbing input files](#globbing-input-files)
+    -   [Post processing: find and
+        replace](#post-processing-find-and-replace)
+    -   [Post processing: prettify
+        JSON](#post-processing-prettify-json)
+    -   [Created files and
+        directories](#created-files-and-directories)
+-   [Installation](#installation)
+    -   [Using stack](#using-stack)
+    -   [Using Cabal](#using-cabal)
+-   [Reference](#reference)
+    -   [Syntax](#syntax)
+    -   [Environment variables](#environment-variables)
+-   [Similar projects](#similar-projects)
 
 ## Tutorial
 
@@ -131,6 +135,25 @@ View example: [`tests/create.goldplate`](tests/create.goldplate)
 program, but you can also check that files were created with specific contents.
 If you do this, `goldplate` will remove these files and directories afterwards
 to leave a clean repository behind.
+
+## Installation
+
+Installation through source is done using standard Haskell tooling -- [Cabal]
+and [stack] both work well.
+
+### Using stack
+
+1.  Install [stack] for your platform.
+2.  Clone this repository and `cd` into it.
+3.  Run `stack install`.
+4.  Make sure `$HOME/.local/bin` is in your `$PATH`.
+
+### Using Cabal
+
+1.  Install [Cabal] for your platform.
+2.  Clone this repository and `cd` into it.
+3.  Run `cabal install`.
+4.  Make sure `$HOME/.cabal/bin` is in your `$PATH`.
 
 ## Reference
 
