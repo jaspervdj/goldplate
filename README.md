@@ -8,7 +8,8 @@
 
 `goldplate` is a cute and simple opaque [golden test] runner for CLI
 applications.  You place your test cases in a directory, annotate them with
-`.goldplate` files, and that's it.  It is completely language agnostic.
+`.goldplate` files, and that's it.  It is completely language agnostic.  And
+perhaps its best feature is that it can automatically✨🪄 fix your tests outputs!
 
 Give `goldplate` a try if:
 
