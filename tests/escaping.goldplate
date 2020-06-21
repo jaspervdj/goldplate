@@ -1,6 +1,16 @@
 {
-  "command": "echo",
-  "arguments": ["${VAR}", "$${VAR}", "$$${VAR}", "$$$${VAR}"],
+  "command": "cat",
+  "arguments": ["-"],
+  "stdin": [
+    "${VAR}",
+    "$${VAR}",
+    "$$${VAR}",
+    "$$$${VAR}",
+    "start ${VAR} end",
+    "start $${VAR} end",
+    "start $$${VAR} end",
+    "start $$$${VAR} end"
+  ],
   "environment": {"VAR": "var"},
   "asserts": [
     {"exit_code": 0},

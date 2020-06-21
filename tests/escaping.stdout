@@ -1,1 +1,8 @@
-var ${VAR} $${VAR} $$${VAR}
+var
+${VAR}
+$${VAR}
+$$${VAR}
+start var end
+start ${VAR} end
+start $${VAR} end
+start $$${VAR} end

@@ -90,7 +90,7 @@ data Spec a = Spec
     { sInputFiles :: !(Maybe a)
     , sCommand    :: !a
     , sArguments  :: ![a]
-    , sStdin      :: ![a]
+    , sStdin      :: !(Maybe (A.Multiple a))
     , sEnv        :: ![(a, a)]
     , sAsserts    :: ![Assert a]
     } deriving (Foldable, Functor, Traversable)
@@ -100,7 +100,7 @@ instance A.FromJSON (Spec String) where
         <$> o A..:? "input_files"
         <*> o A..:  "command"
         <*> o A..:? "arguments" A..!= []
-        <*> (maybe [] A.unMultiple <$> o A..:? "stdin")
+        <*> o A..:? "stdin"
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
         <*> o A..:  "asserts"
 
@@ -182,7 +182,8 @@ instance A.FromJSON a => A.FromJSON (Assert a) where
         (CreatedDirectoryAssert
             <$> o A..: "created_directory")
       where
-        parsePostProcess o = maybe [] A.unMultiple <$> o A..:? "post_process"
+        parsePostProcess o =
+            maybe [] A.multipleToList <$> o A..:? "post_process"
 
 describeAssert :: Assert a -> String
 describeAssert (ExitCodeAssert     _)     = "exit_code"
@@ -207,7 +208,7 @@ data Execution = Execution
     { executionInputFile :: Maybe FilePath
     , executionCommand   :: FilePath
     , executionArguments :: [String]
-    , executionStdin     :: [String]
+    , executionStdin     :: Maybe (A.Multiple String)
     , executionAsserts   :: [Assert String]
     , executionEnv       :: SpliceEnv
     , executionSpecPath  :: FilePath
@@ -312,7 +313,12 @@ runExecution env execution@Execution {..} = do
     (Just hIn, Just hOut, Just hErr, hProc) <-
         Process.createProcess createProcess
 
-    let writeStdin = mapM_ (IO.hPutStrLn hIn) executionStdin >> IO.hClose hIn
+    let writeStdin = do
+            case executionStdin of
+                Nothing -> pure ()
+                Just (A.Single str) -> IO.hPutStr hIn str
+                Just (A.Multiple strs) -> mapM_ (IO.hPutStrLn hIn) strs
+            IO.hClose hIn
     Async.withAsync writeStdin $ \_ ->
         Async.withAsync (B.hGetContents hOut) $ \outAsync ->
         Async.withAsync (B.hGetContents hErr) $ \errAsync ->
