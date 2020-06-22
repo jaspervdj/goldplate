@@ -1,31 +1,30 @@
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DeriveFoldable      #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main
     ( main
     ) where
-
 
 import           Control.Applicative       ((<|>))
 import           Control.Concurrent        (threadDelay)
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
-import           Control.Exception         (Exception, throwIO)
+import           Control.Exception         (Exception, finally, throwIO)
 import           Control.Monad             (forM, forM_, forever, mzero, unless,
                                             when)
+import qualified Data.Aeson                as A
 import qualified Data.Aeson.Encode.Pretty  as Aeson.Pretty
-import qualified Data.Aeson.Extended       as A
 import           Data.Algorithm.Diff
 import           Data.Algorithm.DiffOutput
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy      as BL
+import qualified Data.Foldable             as F
 import           Data.Function             (on)
 import qualified Data.HashMap.Strict       as HMS
 import qualified Data.IORef                as IORef
@@ -38,20 +37,31 @@ import           Data.Typeable             (Typeable)
 import           Data.Version              (showVersion)
 import qualified Options.Applicative       as OA
 import           Paths_goldplate           (version)
-import           System.Directory          (doesDirectoryExist, doesFileExist,
-                                            removeDirectoryRecursive,
-                                            removeFile, withCurrentDirectory)
+import qualified System.Directory          as Dir
 import           System.Environment        (getEnvironment)
 import           System.Exit               (ExitCode (..), exitFailure)
-import           System.FilePath           (dropExtension, isAbsolute,
-                                            isPathSeparator, normalise,
-                                            takeBaseName, takeDirectory, (</>))
+import qualified System.FilePath           as FP
 import qualified System.FilePath.Glob      as Glob
 import qualified System.IO                 as IO
 import qualified System.Process            as Process
 import           Text.Printf               (printf)
 import qualified Text.Regex.PCRE.Simple    as Pcre
 
+--------------------------------------------------------------------------------
+
+-- | This is a little helper type that we use when we either support multiple
+-- things (e.g. lines of stdin) or a single thing (e.g. a single string of
+-- stdin).
+data Multiple a = Multiple [a] | Single a
+    deriving (Foldable, Functor, Traversable)
+
+instance A.FromJSON a => A.FromJSON (Multiple a) where
+    parseJSON v = (Multiple <$> A.parseJSON v) <|> (Single <$> A.parseJSON v)
+
+multipleToList :: Multiple a -> [a]
+multipleToList = F.toList
+
+--------------------------------------------------------------------------------
 
 -- | Environment for splicing in things.
 type SpliceEnv = [(String, String)]
@@ -84,15 +94,17 @@ splice env = go
         (xs, []) -> Right xs
         (xs, (y : ys)) -> (xs ++) . (y :) <$> (go ys)
 
+--------------------------------------------------------------------------------
 
--- | The type parameter indicates the fields that we allow splicing over.
+-- | A specification that we parse from a JSON file.
+-- The type parameter indicates the fields that we allow splicing over.
 data Spec a = Spec
-    { sInputFiles :: !(Maybe a)
-    , sCommand    :: !a
-    , sArguments  :: ![a]
-    , sStdin      :: !(Maybe (A.Multiple a))
-    , sEnv        :: ![(a, a)]
-    , sAsserts    :: ![Assert a]
+    { specInputFiles :: !(Maybe a)
+    , specCommand    :: !a
+    , specArguments  :: ![a]
+    , specStdin      :: !(Maybe (Multiple a))
+    , specEnv        :: ![(a, a)]
+    , specAsserts    :: ![Assert a]
     } deriving (Foldable, Functor, Traversable)
 
 instance A.FromJSON (Spec String) where
@@ -104,7 +116,9 @@ instance A.FromJSON (Spec String) where
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
         <*> o A..:  "asserts"
 
+--------------------------------------------------------------------------------
 
+-- | Post processing of stdout or created files.
 type PostProcess = [PostProcessStep]
 
 data PostProcessStep
@@ -112,20 +126,17 @@ data PostProcessStep
     | ReplaceStep !Pcre.Regex !T.Text
 
 instance A.FromJSON PostProcessStep where
-    parseJSON (A.String s) = case s of
-        "prettify_json" -> pure PrettifyJsonStep
-        _               -> fail $ "Unknown PostProcessStep: " ++ show s
-
-    parseJSON (A.Object o) = ReplaceStep
-        <$> (do
-                p <- o A..: "pattern"
-                either (fail . show) return (Pcre.compile copts eopts p))
-        <*> o A..: "replacement"
+    parseJSON = \case
+        A.String "prettify_json" -> pure PrettifyJsonStep
+        A.Object o -> ReplaceStep
+            <$> (do
+                    p <- o A..: "pattern"
+                    either (fail . show) return (Pcre.compile copts eopts p))
+            <*> o A..: "replacement"
+        _ -> mzero
       where
         copts = Pcre.optionUtf8 <> Pcre.optionMultiline
         eopts = mempty
-
-    parseJSON _ = mzero
 
 postProcess :: PostProcess -> B.ByteString -> B.ByteString
 postProcess ps bs0 = List.foldl' (flip postProcessStep) bs0 ps
@@ -144,6 +155,7 @@ postProcessStep (ReplaceStep regex replacement) bs =
     either (const bs) T.encodeUtf8 .
     Pcre.replaceAll regex replacement $ T.decodeUtf8 bs
 
+--------------------------------------------------------------------------------
 
 -- | Asserts that can happen after an execution.
 data Assert a
@@ -169,21 +181,13 @@ data Assert a
 instance A.FromJSON a => A.FromJSON (Assert a) where
     parseJSON = A.withObject "FromJSON Assert" $ \o ->
         (ExitCodeAssert <$> o A..: "exit_code") <|>
-        (StdoutAssert
-            <$> o A..: "stdout"
-            <*> parsePostProcess o) <|>
-        (StderrAssert
-            <$> o A..: "stderr"
-            <*> parsePostProcess o) <|>
+        (StdoutAssert <$> o A..: "stdout" <*> pp o) <|>
+        (StderrAssert <$> o A..: "stderr" <*> pp o) <|>
         (CreatedFileAssert
-            <$> o A..: "created_file"
-            <*> o A..:? "contents"
-            <*> parsePostProcess o) <|>
-        (CreatedDirectoryAssert
-            <$> o A..: "created_directory")
+            <$> o A..: "created_file" <*> o A..:? "contents" <*> pp o) <|>
+        (CreatedDirectoryAssert <$> o A..: "created_directory")
       where
-        parsePostProcess o =
-            maybe [] A.multipleToList <$> o A..:? "post_process"
+        pp o = maybe [] multipleToList <$> o A..:? "post_process"
 
 describeAssert :: Assert a -> String
 describeAssert (ExitCodeAssert     _)     = "exit_code"
@@ -192,10 +196,13 @@ describeAssert (StderrAssert       _ _)   = "stderr"
 describeAssert (CreatedFileAssert  _ _ _) = "created_file"
 describeAssert (CreatedDirectoryAssert _) = "created_directory"
 
+--------------------------------------------------------------------------------
+
+-- | Embarrassingly simple logger.
+type Logger = Verbosity -> [String] -> IO ()
+
 data Verbosity = Debug | Message | Error
     deriving (Eq, Ord)
-
-type Logger = Verbosity -> [String] -> IO ()
 
 makeLogger :: Bool -> IO Logger
 makeLogger verbose = do
@@ -204,13 +211,13 @@ makeLogger verbose = do
         unless (not verbose && verbosity == Debug) $
             MVar.withMVar lock $ \() -> mapM_ (IO.hPutStrLn IO.stderr) msgs
 
+--------------------------------------------------------------------------------
+
+-- | A plain 'Spec' parsed from a JSON file usually gives us one more or
+-- executions of a process.  This contains more info than a plain 'Spec'.
 data Execution = Execution
-    { executionInputFile :: Maybe FilePath
-    , executionCommand   :: FilePath
-    , executionArguments :: [String]
-    , executionStdin     :: Maybe (A.Multiple String)
-    , executionAsserts   :: [Assert String]
-    , executionEnv       :: SpliceEnv
+    { executionSpec      :: Spec String
+    , executionInputFile :: Maybe FilePath
     , executionSpecPath  :: FilePath
     , executionSpecName  :: String
     , executionDirectory :: FilePath
@@ -218,9 +225,9 @@ data Execution = Execution
 
 specExecutions :: FilePath -> Spec String -> IO [Execution]
 specExecutions specPath spec = do
-    let specBaseName  = takeBaseName  specPath
-        specDirectory = takeDirectory specPath
-        specName      = dropExtension specBaseName
+    let specBaseName  = FP.takeBaseName  specPath
+        specDirectory = FP.takeDirectory specPath
+        specName      = FP.dropExtension specBaseName
 
     -- Compute initial environment to get input files.
     env0 <- getEnvironment
@@ -228,17 +235,17 @@ specExecutions specPath spec = do
             List.nubBy ((==) `on` fst) $
                 ("GOLDPLATE_NAME", specName) :
                 ("GOLDPLATE_FILE", specBaseName) :
-                sEnv spec ++ env0
+                specEnv spec ++ env0
 
     -- Get a list of concrete input files (a list maybes).
-    concreteInputFiles <- case sInputFiles spec of
+    concreteInputFiles <- case specInputFiles spec of
         Nothing    -> return [Nothing]
         Just glob0 -> do
             glob <- hoistEither $ splice env1 glob0
-            inputFiles <- withCurrentDirectory specDirectory $ do
+            inputFiles <- Dir.withCurrentDirectory specDirectory $ do
                 matches <- globCurrentDir glob
                 length matches `seq` return matches
-            return (map (Just . normalise) inputFiles)
+            return (map (Just . FP.normalise) inputFiles)
 
     -- Create an execution for every concrete input.
     forM concreteInputFiles $ \mbInputFile -> do
@@ -247,19 +254,15 @@ specExecutions specPath spec = do
                 Nothing        -> env1
                 Just inputFile ->
                     ("GOLDPLATE_INPUT_FILE", inputFile) :
-                    ("GOLDPLATE_INPUT_NAME", dropExtension inputFile) :
+                    ("GOLDPLATE_INPUT_NAME", FP.dropExtension inputFile) :
                     env1
 
         -- Return execution after doing some splicing.
         hoistEither $ do
             spec' <- traverse (splice env2) spec
             pure Execution
-                { executionInputFile = mbInputFile
-                , executionCommand   = sCommand spec'
-                , executionArguments = sArguments spec'
-                , executionStdin     = sStdin spec'
-                , executionAsserts   = sAsserts spec'
-                , executionEnv       = env2
+                { executionSpec      = spec' {specEnv = env2}
+                , executionInputFile = mbInputFile
                 , executionSpecPath  = specPath
                 , executionSpecName  = specName
                 , executionDirectory = specDirectory
@@ -274,6 +277,8 @@ executionHeader execution =
     case executionInputFile execution of
         Nothing -> ": "
         Just fp -> " (" ++ fp ++ "): "
+
+--------------------------------------------------------------------------------
 
 data Env = Env
     { envLogger        :: !Logger
@@ -296,11 +301,12 @@ data ExecutionResult = ExecutionResult
 runExecution
     :: Env -> Execution -> IO ()
 runExecution env execution@Execution {..} = do
+    let Spec {..} = executionSpec
     envLogger env Debug [executionHeader execution ++ "running..."]
 
     -- Create a "CreateProcess" description.
-    let createProcess = (Process.proc executionCommand executionArguments)
-            { Process.env     = Just executionEnv
+    let createProcess = (Process.proc specCommand specArguments)
+            { Process.env     = Just specEnv
             , Process.cwd     = Just executionDirectory
             , Process.std_in  = Process.CreatePipe
             , Process.std_out = Process.CreatePipe
@@ -309,16 +315,14 @@ runExecution env execution@Execution {..} = do
 
     -- Actually run the process.
     envLogger env Debug [executionHeader execution ++
-        executionCommand ++ " " ++ unwords executionArguments]
+        specCommand ++ " " ++ unwords specArguments]
     (Just hIn, Just hOut, Just hErr, hProc) <-
         Process.createProcess createProcess
 
-    let writeStdin = do
-            case executionStdin of
-                Nothing -> pure ()
-                Just (A.Single str) -> IO.hPutStr hIn str
-                Just (A.Multiple strs) -> mapM_ (IO.hPutStrLn hIn) strs
-            IO.hClose hIn
+    let writeStdin = (`finally` IO.hClose hIn) $ case specStdin of
+            Nothing              -> pure ()
+            Just (Single str)    -> IO.hPutStr hIn str
+            Just (Multiple strs) -> mapM_ (IO.hPutStrLn hIn) strs
     Async.withAsync writeStdin $ \_ ->
         Async.withAsync (B.hGetContents hOut) $ \outAsync ->
         Async.withAsync (B.hGetContents hErr) $ \errAsync ->
@@ -341,11 +345,10 @@ runExecution env execution@Execution {..} = do
 
         -- Perform checks.
         envLogger env Debug [executionHeader execution ++ "checking assertions..."]
-        forM_ executionAsserts $ runAssert env execution executionResult
+        forM_ specAsserts $ runAssert env execution executionResult
         envLogger env Debug [executionHeader execution ++ "done"]
 
-
--- | Check an assertion.
+-- | Check a single assertion.
 runAssert :: Env -> Execution -> ExecutionResult -> Assert String -> IO ()
 runAssert env execution@Execution {..} ExecutionResult {..} assert =
     case assert of
@@ -365,7 +368,7 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
 
         CreatedFileAssert {..} -> do
             let path = inExecutionDir createdFilePath
-            exists <- doesFileExist path
+            exists <- Dir.doesFileExist path
             assertTrue exists $ createdFilePath ++ " was not created"
             when exists $ do
                 case createdFileContents of
@@ -375,21 +378,22 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                         checkAgainstFile
                             (inExecutionDir expectedPath)
                             createdFilePostProcess actual
-                removeFile path
+                Dir.removeFile path
                 envLogger env Debug [executionHeader execution ++
                     "removed " ++ createdFilePath]
 
         CreatedDirectoryAssert {..} -> do
             let path = inExecutionDir createdDirectoryPath
-            exists <- doesDirectoryExist path
+            exists <- Dir.doesDirectoryExist path
             assertTrue exists $ createdDirectoryPath ++ " was not created"
             when exists $ do
-                removeDirectoryRecursive path
+                Dir.removeDirectoryRecursive path
                 envLogger env Debug [executionHeader execution ++
                     "removed " ++ createdDirectoryPath]
   where
     inExecutionDir :: FilePath -> FilePath
-    inExecutionDir fp = if isAbsolute fp then fp else executionDirectory </> fp
+    inExecutionDir fp =
+        if FP.isAbsolute fp then fp else executionDirectory FP.</> fp
 
     checkAgainstFile :: FilePath -> PostProcess -> B.ByteString -> IO ()
     checkAgainstFile expectedPath processor actual0 = do
@@ -432,20 +436,21 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                     describeAssert assert ++ ": " ++ err]
                 incrementCount (envCountFailures env)
 
+--------------------------------------------------------------------------------
+
+-- | Read a file if it exists, otherwise pretend it's empty.
 readFileOrEmpty :: FilePath -> IO B.ByteString
 readFileOrEmpty fp = do
-    exists <- doesFileExist fp
+    exists <- Dir.doesFileExist fp
     if exists then B.readFile fp else return B.empty
-
 
 -- | Recursively finds all '.goldplate' files in bunch of files or directories.
 findSpecs :: [FilePath] -> IO [FilePath]
 findSpecs fps = fmap concat $ forM fps $ \fp -> do
-    isDir <- doesDirectoryExist fp
+    isDir <- Dir.doesDirectoryExist fp
     case isDir of
         False -> return [fp]
         True  -> Glob.globDir1 (Glob.compile "**/*.goldplate") fp
-
 
 -- | Perform a glob match in the current directory.
 --
@@ -455,11 +460,13 @@ globCurrentDir :: String -> IO [FilePath]
 globCurrentDir pattern =
     map dropLeadingDot <$> Glob.globDir1 (Glob.compile pattern) "."
   where
-    dropLeadingDot fp0 = case break isPathSeparator fp0 of
+    dropLeadingDot fp0 = case break FP.isPathSeparator fp0 of
         (".", fp1) -> drop 1 fp1
         _          -> fp0
 
+--------------------------------------------------------------------------------
 
+-- | Command-line options.
 data Options = Options
     { oPaths      :: [FilePath]
     , oVerbose    :: Bool
@@ -468,7 +475,6 @@ data Options = Options
     , oFix        :: Bool
     , oJobs       :: Int
     }
-
 
 parseOptions :: OA.Parser Options
 parseOptions = Options
@@ -498,6 +504,7 @@ parserInfo = OA.info (OA.helper <*> parseOptions) $
     OA.fullDesc <>
     OA.header ("goldplate v" <> showVersion version)
 
+--------------------------------------------------------------------------------
 
 -- | Spawn a worker thread that takes workloads from a shared pool.
 worker
@@ -512,6 +519,7 @@ worker pool f = do
         Nothing       -> return ()
         Just workload -> f workload >> worker pool f
 
+--------------------------------------------------------------------------------
 
 main :: IO ()
 main = do

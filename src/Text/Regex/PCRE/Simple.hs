@@ -1,3 +1,4 @@
+-- | Very simple wrapper around PCRE.  Just kind of exports what we needs.
 module Text.Regex.PCRE.Simple
     ( CompileOptions
     , optionUtf8

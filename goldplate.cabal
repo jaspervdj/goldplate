@@ -21,7 +21,6 @@ Executable goldplate
   Ghc-options:       -Wall -rtsopts -threaded -O2
 
   Other-modules:
-    Data.Aeson.Extended
     Text.Regex.PCRE.Simple
     Paths_goldplate
 
