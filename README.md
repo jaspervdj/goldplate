@@ -68,47 +68,18 @@ Create a new file `echo.goldplate` and add the following content:
 
 Let's go through this bit by bit.
 
-The test invocation is specified by the `command` and `arguments` fields in
-[`tests/echo.goldplate`](tests/echo.goldplate).  We have:
-
-```json
-{
-    "command": "echo",
-    "arguments": ["Hello, world!"],
-    ...
-}
-```
+The test invocation is specified by the `command` and `arguments` fields.  We
+are invoking the `echo` process with a single argument, `"Hello, world!"`.
 
 The expected results of our test live in the `asserts` field.  This simple test
 has two asserts:
 
 1.  We verify that the exit code is 0 (success).
-
-    ```json
-    {
-        ...
-        "asserts": [
-            {"exit_code": 0},
-            ...
-        ]
-    }
-    ```
-
 2.  We check the `stdout` (output) of the command against the contents of
     the file `hello-world.txt`.
 
-    ```json
-    {
-        ...
-        "asserts": [
-            ...
-            {"stdout": "hello-world.txt"}
-        ]
-    }
-    ```
-
-**We haven't created** `hello-world.txt` yet, but that's not a problem.  We
-can invoke `goldplate --fix` to create it:
+We haven't created `hello-world.txt` yet, but that's not a problem.  We can
+invoke `goldplate --fix` to create it:
 
     $ goldplate echo.goldplate --pretty-diff --fix
     ...
@@ -117,28 +88,34 @@ can invoke `goldplate --fix` to create it:
     ...
     Ran 1 specs, 1 executions, 2 asserts, 1 failed.
 
-This creates `hello-world.txt` with the expected output.  After verifying the
-contents of that file, we can check that into our version control system, and
-we'll know if the output ever changes.  Subsequent `goldplate` invocations will
-pass now that `hello-world.txt` has been created:
+After `hello-world.txt` has been created with proper contents, subsequent
+`goldplate` invocations will pass:
 
     $ goldplate echo.goldplate
     ...
     Ran 1 specs, 1 executions, 2 asserts, all A-OK!
 
 You can view the full example here:
-[`tests/echo.goldplate`](tests/echo.goldplate)
+
+ -  [`tests/echo.goldplate`](tests/echo.goldplate)
+ -  [`tests/hello-world.txt`](tests/hello-world.txt)
 
 ### Feeding input on stdin
 
-View example: [`tests/cat.goldplate`](tests/cat.goldplate)
+View example:
+
+ -  [`tests/cat.goldplate`](tests/cat.goldplate)
+ -  [`tests/cat.stdout`](tests/cat.stdout)
 
 You can pass one or multiple lines of input to the command by using the `stdin`
 field.
 
 ### Setting environment variables
 
-View example: [`tests/env.goldplate`](tests/env.goldplate)
+View example:
+
+ -  [`tests/env.goldplate`](tests/env.goldplate)
+ -  [`tests/env.stdout`](tests/env.stdout)
 
 The `environment` field can be used to set environment variables for the
 program.
@@ -157,7 +134,13 @@ We found this to be good practice, it makes mass-renaming of tests much easier.
 
 ### Globbing input files
 
-View example: [`tests/glob.goldplate`](tests/glob.goldplate)
+View example:
+
+ -  [`tests/glob.goldplate`](tests/glob.goldplate)
+ -  [`tests/glob-1.txt`](tests/glob-1.txt)
+ -  [`tests/glob-1.stdout`](tests/glob-1.stdout)
+ -  [`tests/glob-2.txt`](tests/glob-2.txt)
+ -  [`tests/glob-2.stdout`](tests/glob-2.stdout)
 
 `.goldplate` files are fairly small but if you have a whole directory of files
 that you just want to run the same command on, they can get very repetitive.
@@ -171,7 +154,10 @@ matching input file.  `goldplate` will set the following variables:
 
 ### Post processing: find and replace
 
-View example: [`tests/replace.goldplate`](tests/replace.goldplate)
+View example:
+
+ -  [`tests/replace.goldplate`](tests/replace.goldplate)
+ -  [`tests/replace.stdout`](tests/replace.stdout)
 
 Sometimes you may want to do a find-and-replace on the actual output, for
 example to filter out timestamps or other information that you do not expect to
@@ -179,7 +165,10 @@ match up against the expected output.
 
 ### Post processing: prettify JSON
 
-View example: [`tests/prettify-json.goldplate`](tests/prettify-json.goldplate)
+View example:
+
+ -  [`tests/prettify-json.goldplate`](tests/prettify-json.goldplate)
+ -  [`tests/prettify-json.json`](tests/prettify-json.json)
 
 Many modern CLI tools output JSON.  You can use the `prettify_json` post
 processor to make sure the JSON is converted to a normalized form with sorted
@@ -187,7 +176,10 @@ keys and consistent indentation.
 
 ### Created files and directories
 
-View example: [`tests/create.goldplate`](tests/create.goldplate)
+View example:
+
+ -  [`tests/create.goldplate`](tests/create.goldplate)
+ -  [`tests/create.file`](tests/create.file)
 
 `goldplate` is geared towards checking the `stdout` and `stderr` outputs of a
 program, but you can also check that files were created with specific contents.
