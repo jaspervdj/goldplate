@@ -26,7 +26,7 @@ since 2016, so it should be pretty stable.
 ## Table of Contents
 
 -   [Tutorial](#tutorial)
-    -   [Simple asserts](#simple-asserts)
+    -   [Creating a first test](#creating-a-first-test)
     -   [Feeding input on stdin](#feeding-input-on-stdin)
     -   [Setting environment
         variables](#setting-environment-variables)
@@ -47,7 +47,7 @@ since 2016, so it should be pretty stable.
 
 ## Tutorial
 
-### Creating a first assertion
+### Creating a first test
 
 Imagine we are up to testing the behaviour of `echo` command.  In this very
 simple example, we run `echo "Hello, world!"` and expect it to print `Hello,
