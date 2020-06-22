@@ -22,6 +22,7 @@ Executable goldplate
 
   Other-modules:
     Text.Regex.PCRE.Simple
+    Text.Splice
     Paths_goldplate
 
   Build-depends:

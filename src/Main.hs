@@ -15,7 +15,7 @@ import           Control.Applicative       ((<|>))
 import           Control.Concurrent        (threadDelay)
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
-import           Control.Exception         (Exception, finally, throwIO)
+import           Control.Exception         (finally, throwIO)
 import           Control.Monad             (forM, forM_, forever, mzero, unless,
                                             when)
 import qualified Data.Aeson                as A
@@ -33,7 +33,6 @@ import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import           Data.Time                 (NominalDiffTime, diffUTCTime,
                                             getCurrentTime)
-import           Data.Typeable             (Typeable)
 import           Data.Version              (showVersion)
 import qualified Options.Applicative       as OA
 import           Paths_goldplate           (version)
@@ -46,6 +45,7 @@ import qualified System.IO                 as IO
 import qualified System.Process            as Process
 import           Text.Printf               (printf)
 import qualified Text.Regex.PCRE.Simple    as Pcre
+import           Text.Splice
 
 --------------------------------------------------------------------------------
 
@@ -60,39 +60,6 @@ instance A.FromJSON a => A.FromJSON (Multiple a) where
 
 multipleToList :: Multiple a -> [a]
 multipleToList = F.toList
-
---------------------------------------------------------------------------------
-
--- | Environment for splicing in things.
-type SpliceEnv = [(String, String)]
-
-data MissingEnvVar = MissingEnvVar String
-    deriving (Typeable)
-
-instance Show MissingEnvVar where
-    show (MissingEnvVar k) = "Missing environment variable: " ++ k
-
-instance Exception MissingEnvVar
-
--- | Splice in a string with "Hello ${FOO}" syntax.
-splice :: SpliceEnv -> String -> Either MissingEnvVar String
-splice env = go
-  where
-    go str = case break (== '$') str of
-        -- Splice
-        (xs, '$' : '{' : ys) -> case break (== '}') ys of
-            (key, '}' : zs) -> case lookup key env of
-                Nothing  -> Left $ MissingEnvVar key
-                Just val -> fmap ((xs ++ val) ++) (go zs)
-            (_, _) -> fmap ((xs ++ "${") ++) (go ys)
-        -- Escape
-        (xs, '$' : '$' : ys) ->
-            let (dollars, zs) = break (== '{') ys in
-            if all (== '$') dollars && "{" `List.isPrefixOf` zs
-                then (xs ++) . (dollars ++) . ("${" ++) <$> go (drop 1 zs)
-                else (xs ++) . ("$$" ++) <$> go ys
-        (xs, []) -> Right xs
-        (xs, (y : ys)) -> (xs ++) . (y :) <$> (go ys)
 
 --------------------------------------------------------------------------------
 
