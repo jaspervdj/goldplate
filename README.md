@@ -47,39 +47,87 @@ since 2016, so it should be pretty stable.
 
 ## Tutorial
 
-You can follow along with the tutorial by cloning the repository and running
-this command:
+### Creating a first assertion
 
-    $ goldplate tests
+Imagine we are up to testing the behaviour of `echo` command.  In this very
+simple example, we run `echo "Hello, world!"` and expect it to print `Hello,
+world!` to the stdout stream as a result.
 
-As you can see, `goldplate` itself is tested using `goldplate`.  In this
-tutorial, we'll walk through some examples.  By the end, you should have a good
-idea of how to test your CLI application using `goldplate`.
+Create a new file `echo.goldplate` and add the following content:
 
-### Simple asserts
+```json
+{
+    "command": "echo",
+    "arguments": ["Hello, world!"],
+    "asserts": [
+        {"exit_code": 0},
+        {"stdout": "hello-world.txt"}
+    ]
+}
+```
 
-View example: [`tests/echo.goldplate`](tests/echo.goldplate)
+Let's go through this bit by bit.
 
-In this very simple example, we just run `echo "Hello, world!"`.  This is
-specified in the `command` and `arguments` fields.
+The test invocation is specified by the `command` and `arguments` fields in
+[`tests/echo.goldplate`](tests/echo.goldplate).  We have:
 
-The actual tests that we're executing live in the `asserts` field.  This simple
-test has two asserts:
+```json
+{
+    "command": "echo",
+    "arguments": ["Hello, world!"],
+    ...
+}
+```
+
+The expected results of our test live in the `asserts` field.  This simple test
+has two asserts:
 
 1.  We verify that the exit code is 0 (success).
-2.  We check the `stdout` (output) of the command against the file
-    [`tests/echo.stdout`](tests/echo.stdout).
 
-We can check that our asserts are correct:
+    ```json
+    {
+        ...
+        "asserts": [
+            {"exit_code": 0},
+            ...
+        ]
+    }
+    ```
 
-    $ goldplate tests/echo.goldplate
+2.  We check the `stdout` (output) of the command against the contents of
+    the file `hello-world.txt`.
 
-If we want to regenerate the expected output, we can simply do:
+    ```json
+    {
+        ...
+        "asserts": [
+            ...
+            {"stdout": "hello-world.txt"}
+        ]
+    }
+    ```
 
-    $ rm tests/echo.stdout
-    $ goldplate --fix --pretty-diff tests/echo.goldplate
+**We haven't created** `hello-world.txt` yet, but that's not a problem.  We
+can invoke `goldplate --fix` to create it:
 
-And `goldplate` will show you that it fixed one file.
+    $ goldplate echo.goldplate --pretty-diff --fix
+    ...
+    echo.goldplate: stdout: does not match
+    echo.goldplate: fixed ./hello-world.txt
+    ...
+    Ran 1 specs, 1 executions, 2 asserts, 1 failed.
+
+This creates `hello-world.txt` with the expected output.  After verifying the
+contents of that file, we can check that into our version control system, and
+we'll know if the output ever changes.  Subsequent `goldplate` invocations will
+pass now that `hello-world.txt` has been created:
+
+    $ goldplate echo.goldplate
+    ...
+    Ran 1 specs, 1 executions, 2 asserts, all A-OK!
+
+You can view the full example here:
+[`tests/echo.goldplate`](tests/echo.goldplate)
 
 ### Feeding input on stdin
 
