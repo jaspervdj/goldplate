@@ -68,9 +68,7 @@ test has two asserts:
 
 1.  We verify that the exit code is 0 (success).
 2.  We check the `stdout` (output) of the command against the file
-    `${GOLDPLATE_NAME}.stdout`.  `GOLDPLATE_NAME` is the name of the
-    specification without the extension; so our expected output lives in
-    [`tests/echo.stdout`](tests/echo.stdout) in this case.
+    [`tests/echo.stdout`](tests/echo.stdout).
 
 We can check that our asserts are correct:
 
@@ -96,6 +94,18 @@ View example: [`tests/env.goldplate`](tests/env.goldplate)
 
 The `environment` field can be used to set environment variables for the
 program.
+
+`goldplate` also sets [a number of environment
+variables](#environment-variables).  You can use these directly within the
+configuration JSON.  In this example, we use:
+
+    {"stdout": "${GOLDPLATE_NAME}.stdout"}
+
+Rather than:
+
+    {"stdout": "env.stdout"}
+
+We found this to be good practice, it makes mass-renaming of tests much easier.
 
 ### Globbing input files
 
@@ -168,18 +178,31 @@ syntax within strings.  To escape this syntax, use `$${VAR}` to get a literal
 The test is always executed in the directory that holds the `.goldplate` file.
 `goldplate` will always set the following environment variables:
 
- -  `GOLDPLATE_FILE`: The filename of the `.goldplate` file, e.g.
-    `echo.goldplate`.
- -  `GOLDPLATE_NAME`: The filename of the `.goldplate` file without the
-    extension, e.g. `echo`.
+ -  `GOLDPLATE_FILE`: The filename of the `.goldplate` file.
+ -  `GOLDPLATE_NAME`: The filename of the `.goldplate` file _without_ the
+    extension.
 
 When dealing with [multiple input files](#globbing-input-files), the following
 additional variables are set:
 
- -  `GOLDPLATE_INPUT_FILE`: The input file name, relative to the current
-    directory.
+ -  `GOLDPLATE_INPUT_FILE`: The input file name (relative to the current
+    directory).
  -  `GOLDPLATE_INPUT_NAME`: The same as `GOLDPLATE_INPUT_FILE` but without
-    any extensions.
+    the extension.
+
+To recap, if we have a specification `prettify-js.goldplate` that uses:
+
+    "input_files": "module-*.js"
+
+And `module-1.js` matches the glob, we'll get an execution with the following
+environment variables set:
+
+| Variable               | Value                   |
+| ---------------------- | ----------------------- |
+| `GOLDPLATE_FILE`       | `prettify-js.goldplate` |
+| `GOLDPLATE_NAME`       | `prettify-js`           |
+| `GOLDPLATE_INPUT_FILE` | `module-1.js`           |
+| `GOLDPLATE_INPUT_NAME` | `module-1`              |
 
 ## Similar projects
 
