@@ -221,6 +221,8 @@ The test is always executed in the directory that holds the `.goldplate` file.
  -  `GOLDPLATE_FILE`: The filename of the `.goldplate` file.
  -  `GOLDPLATE_NAME`: The filename of the `.goldplate` file _without_ the
     extension.
+ -  `GOLDPLATE_BASENAME`: The basename (filename without directory) of
+    the `.goldplate` file.
 
 When dealing with [multiple input files](#globbing-input-files), the following
 additional variables are set:
@@ -229,20 +231,13 @@ additional variables are set:
     directory).
  -  `GOLDPLATE_INPUT_NAME`: The same as `GOLDPLATE_INPUT_FILE` but without
     the extension.
+ -  `GOLDPLATE_INPUT_BASENAME`: The basename (filename without directory) of
+    the input file.
 
-To recap, if we have a specification `prettify-js.goldplate` that uses:
+Here is an example that outputs all of these environment variables:
 
-    "input_files": "module-*.js"
-
-And `module-1.js` matches the glob, we'll get an execution with the following
-environment variables set:
-
-| Variable               | Value                   |
-| ---------------------- | ----------------------- |
-| `GOLDPLATE_FILE`       | `prettify-js.goldplate` |
-| `GOLDPLATE_NAME`       | `prettify-js`           |
-| `GOLDPLATE_INPUT_FILE` | `module-1.js`           |
-| `GOLDPLATE_INPUT_NAME` | `module-1`              |
+ -  [`tests/builtin.goldplate`](tests/builtin.goldplate)
+ -  [`tests/builtin.stdout`](tests/builtin.stdout)
 
 ## Similar projects
 

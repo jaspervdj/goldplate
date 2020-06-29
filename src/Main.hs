@@ -192,9 +192,8 @@ data Execution = Execution
 
 specExecutions :: FilePath -> Spec String -> IO [Execution]
 specExecutions specPath spec = do
-    let specBaseName  = FP.takeBaseName  specPath
-        specDirectory = FP.takeDirectory specPath
-        specName      = FP.dropExtension specBaseName
+    let (specDirectory, specBaseName) = FP.splitFileName specPath
+        specName                      = FP.dropExtension specBaseName
 
     -- Compute initial environment to get input files.
     env0 <- getEnvironment
@@ -202,6 +201,7 @@ specExecutions specPath spec = do
             List.nubBy ((==) `on` fst) $
                 ("GOLDPLATE_NAME", specName) :
                 ("GOLDPLATE_FILE", specBaseName) :
+                ("GOLDPLATE_BASENAME", specBaseName) :
                 specEnv spec ++ env0
 
     -- Get a list of concrete input files (a list maybes).
@@ -222,6 +222,7 @@ specExecutions specPath spec = do
                 Just inputFile ->
                     ("GOLDPLATE_INPUT_FILE", inputFile) :
                     ("GOLDPLATE_INPUT_NAME", FP.dropExtension inputFile) :
+                    ("GOLDPLATE_INPUT_BASENAME", snd $ FP.splitFileName inputFile) :
                     env1
 
         -- Return execution after doing some splicing.
