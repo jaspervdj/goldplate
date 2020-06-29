@@ -1,0 +1,16 @@
+{
+    "command": "bash",
+    "input_files": "builtin/*",
+    "stdin": [
+        "echo GOLDPLATE_NAME: $GOLDPLATE_NAME",
+        "echo GOLDPLATE_FILE: $GOLDPLATE_FILE",
+        "echo GOLDPLATE_BASENAME: $GOLDPLATE_BASENAME",
+        "echo GOLDPLATE_INPUT_NAME: $GOLDPLATE_INPUT_NAME",
+        "echo GOLDPLATE_INPUT_FILE: $GOLDPLATE_INPUT_FILE",
+        "echo GOLDPLATE_INPUT_BASENAME: $GOLDPLATE_INPUT_BASENAME"
+    ],
+    "asserts": [
+        {"exit_code": 0},
+        {"stdout": "${GOLDPLATE_NAME}.stdout"}
+    ]
+}

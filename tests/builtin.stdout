@@ -1,0 +1,6 @@
+GOLDPLATE_NAME: builtin
+GOLDPLATE_FILE: builtin.goldplate
+GOLDPLATE_BASENAME: builtin.goldplate
+GOLDPLATE_INPUT_NAME: builtin/1
+GOLDPLATE_INPUT_FILE: builtin/1.txt
+GOLDPLATE_INPUT_BASENAME: 1.txt
