@@ -1,0 +1,12 @@
+{
+    "command": "cat",
+    "arguments": ["-"],
+    "stdin": "abcde",
+    "asserts": [
+        {"exit_code": 0},
+        {
+            "stdout": "${GOLDPLATE_NAME}.stdout",
+            "post_process": {"pattern": "[0-9]", "replacement": "X"}
+        }
+    ]
+}

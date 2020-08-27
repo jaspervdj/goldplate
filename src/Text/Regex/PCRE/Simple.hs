@@ -53,6 +53,6 @@ replaceAll regex replacement =
         match <- I.regexec regex text
         case match of
             Left err -> pure . Left $ show err
-            Right Nothing -> pure $ Right acc
+            Right Nothing -> pure . Right $ acc <> TLB.fromText text
             Right (Just (pre, _, post, _)) ->
                 go (acc <> TLB.fromText pre <> TLB.fromText replacement) post
