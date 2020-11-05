@@ -1,5 +1,12 @@
 # CHANGELOG
 
+ -  0.1.2 (2020-11-05)
+     *  Bump `regex-pcre-builtin` dependency lower bound to 0.95.1.3 to fix
+        issue with `Text` regexes (by Stefano Debenedetti).
+     *  Fix issue with `replace` in post process step.  If the string was not
+        matched at all, or if there was a remainder, it could get dropped
+        (by Stefano Debenedetti).
+
  -  0.1.1 (2020-06-29)
      *  Add `GOLDPLATE_BASENAME` and `GOLDPLATE_INPUT_BASENAME` environment
         variables.
