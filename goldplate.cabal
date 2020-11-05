@@ -37,7 +37,7 @@ Executable goldplate
     Glob                 >= 0.10 && < 0.11,
     optparse-applicative >= 0.14 && < 0.16,
     process              >= 1.6  && < 1.7,
-    regex-pcre-builtin   >= 0.95 && < 0.96,
+    regex-pcre-builtin   >= 0.95.1.3 && < 0.96,
     text                 >= 1.2  && < 1.3,
     time                 >= 1.8  && < 1.10,
     unordered-containers >= 0.2  && < 0.3
