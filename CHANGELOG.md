@@ -1,5 +1,9 @@
 # CHANGELOG
 
+ -  0.1.3 (2021-02-10)
+     *  Bump `aeson` dependency upper bound to 1.5.
+     *  Bump GHC to 8.10.3.
+
  -  0.1.2 (2020-11-05)
      *  Bump `regex-pcre-builtin` dependency lower bound to 0.95.1.3 to fix
         issue with `Text` regexes (by Stefano Debenedetti).
