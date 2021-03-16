@@ -5,13 +5,13 @@ License:       Apache-2.0
 License-file:  LICENSE
 Author:        Jasper Van der Jeugt <jasper@fugue.co>
 Maintainer:    Jasper Van der Jeugt <jasper@fugue.co>
-Copyright:     2019-2020 Fugue, Inc
+Copyright:     2019-2021 Fugue, Inc
 Category:      Language
 Build-type:    Simple
 Cabal-version: 1.18
 Description:   Language-agnostic golden test runner for command-line applications.
 
-tested-with:
+Tested-with:
   GHC == 9.0.1
   GHC == 8.10.4
   GHC == 8.8.4
@@ -35,7 +35,7 @@ Executable goldplate
   Hs-source-dirs:    src
   Main-is:           Main.hs
   Default-language:  Haskell2010
-  Ghc-options:       -Wall -rtsopts -threaded -O2
+  Ghc-options:       -Wall -rtsopts -threaded
 
   Other-modules:
     Text.Regex.PCRE.Simple
