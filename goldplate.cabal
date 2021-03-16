@@ -6,6 +6,8 @@ License-file:  LICENSE
 Author:        Jasper Van der Jeugt <jasper@fugue.co>
 Maintainer:    Jasper Van der Jeugt <jasper@fugue.co>
 Copyright:     2019-2021 Fugue, Inc
+Homepage:      https://github.com/fugue/goldplate
+Bug-reports:   https://github.com/fugue/goldplate/issues
 Category:      Language
 Build-type:    Simple
 Cabal-version: 1.18
