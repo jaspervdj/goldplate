@@ -317,13 +317,12 @@ data AssertResult = AssertResult
     { arAssert  :: Assert String
     , arOk      :: Bool
     , arMessage :: [String]
-    , arDebug   :: [String]
     }
 
 -- | Check a single assertion.
 runAssert
     :: Env -> Execution -> ExecutionResult -> Assert String -> IO AssertResult
-runAssert env Execution {..} ExecutionResult {..} assert =
+runAssert env execution@Execution {..} ExecutionResult {..} assert =
     case assert of
         ExitCodeAssert expectedExitCode ->
             let actualExitCode = case erExitCode of
@@ -333,7 +332,6 @@ runAssert env Execution {..} ExecutionResult {..} assert =
             pure $ AssertResult assert success
                 ["expected " ++ show expectedExitCode ++
                     " but got " ++ show actualExitCode | not success]
-                []
 
         StdoutAssert {..} -> checkAgainstFile
             (inExecutionDir stdoutFilePath) stdoutPostProcess erStdout
@@ -346,30 +344,30 @@ runAssert env Execution {..} ExecutionResult {..} assert =
             exists <- Dir.doesFileExist path
             case exists of
                 False -> pure $ AssertResult assert False
-                    [createdFilePath ++ " was not created"] []
+                    [createdFilePath ++ " was not created"]
                 True -> case createdFileContents of
-                    Nothing           -> pure $ AssertResult assert True [] []
+                    Nothing           -> pure $ AssertResult assert True []
                     Just expectedPath -> do
                         !actual <- readFileOrEmpty path
                         ar <- checkAgainstFile
                             (inExecutionDir expectedPath)
                             createdFilePostProcess actual
                         Dir.removeFile path
+                        logDebug (envLogger env)
+                            [executionHeader execution ++ "removed " ++ path]
                         pure ar
-                            { arDebug = arDebug ar ++
-                                ["removed " ++ createdFilePath]
-                            }
 
         CreatedDirectoryAssert {..} -> do
             let path = inExecutionDir createdDirectoryPath
             exists <- Dir.doesDirectoryExist path
             case exists of
                 False -> pure $ AssertResult assert False
-                    [createdDirectoryPath ++ " was not created"] []
+                    [createdDirectoryPath ++ " was not created"]
                 True -> do
                     Dir.removeDirectoryRecursive path
+                    logDebug (envLogger env)
+                        [executionHeader execution ++ "removed " ++ path]
                     pure $ AssertResult assert True []
-                        ["removed " ++ createdDirectoryPath]
   where
     inExecutionDir :: FilePath -> FilePath
     inExecutionDir fp =
@@ -395,7 +393,6 @@ runAssert env Execution {..} ExecutionResult {..} assert =
             { arAssert  = assert
             , arOk      = success
             , arMessage = concat $
-                [ ["does not match"] | not success ] ++
                 [ [ "expected:"
                   , show expected
                   , "actual:"
@@ -407,7 +404,6 @@ runAssert env Execution {..} ExecutionResult {..} assert =
                 | not success && envPrettyDiff env
                 ] ++
                 [ ["fixed " ++ expectedPath] | shouldFix ]
-            , arDebug = []
             }
 
 
