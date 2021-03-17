@@ -15,7 +15,7 @@ import           Control.Applicative       ((<|>))
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
 import           Control.Exception         (finally, throwIO)
-import           Control.Monad             (forM, forM_, mzero)
+import           Control.Monad             (forM, forM_, mzero, unless, when)
 import qualified Data.Aeson                as A
 import qualified Data.Aeson.Encode.Pretty  as Aeson.Pretty
 import           Data.Algorithm.Diff
@@ -499,6 +499,7 @@ worker pool f = do
 main :: IO ()
 main = do
     options <- OA.execParser parserInfo
+    failed  <- IORef.newIORef False
     env     <- Env
         <$> makeLogger (oVerbose options)
         <*> pure (oDiff options)
@@ -542,22 +543,9 @@ main = do
                         (executionHeader execution ++ show i ++ " " ++
                             describeAssert assert)
                         (arMessage assertResult)
+                unless (arOk assertResult) $ IORef.writeIORef failed True
                 logTapUnit (envLogger env) tapUnit
 
     -- Report summary.
-    {-
-    asserts       <- IORef.readIORef (envCountAsserts  env)
-    failures      <- IORef.readIORef (envCountFailures env)
-    if failures == 0
-        then
-            envLogger env Message [
-                "Ran " ++ show numSpecs ++ " specs, " ++
-                show numExecutions ++ " executions, " ++
-                show asserts ++ " asserts, all A-OK!"]
-        else do
-            envLogger env Error [
-                "Ran " ++ show numSpecs ++ " specs, " ++
-                show numExecutions ++ " executions, " ++
-                show asserts ++ " asserts, " ++ show failures ++ " failed."]
-            exitFailure
-    -}
+    hasFailed <- IORef.readIORef failed
+    when hasFailed exitFailure
