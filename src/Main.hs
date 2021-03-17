@@ -160,13 +160,10 @@ describeAssert (CreatedDirectoryAssert _) = "created_directory"
 
 --------------------------------------------------------------------------------
 
-data TapUnit = TapUnit Bool String [String] deriving (Show)
-
 data Logger = Logger
-    { logDebug    :: [String] -> IO ()
-    , logError    :: [String] -> IO ()
-    , logNumUnits :: Int -> IO ()
-    , logTapUnit  :: TapUnit -> IO ()
+    { logDebug :: [String] -> IO ()
+    , logError :: [String] -> IO ()
+    , logOut   :: [String] -> IO ()
     }
 
 makeLogger :: Bool -> IO Logger
@@ -174,15 +171,10 @@ makeLogger verbose = do
     lock <- MVar.newMVar ()
     let writeLines h ls = MVar.withMVar lock $ \() -> mapM_ (IO.hPutStrLn h) ls
     return Logger
-        { logDebug    = if verbose then writeLines IO.stderr else \_ -> pure ()
-        , logError    = writeLines IO.stderr
-        , logNumUnits = \n -> writeLines IO.stdout ["1.." ++ show n]
-        , logTapUnit  = writeLines IO.stdout . formatTapUnit
+        { logDebug = if verbose then writeLines IO.stderr else \_ -> pure ()
+        , logError = writeLines IO.stderr
+        , logOut   = writeLines IO.stdout
         }
-  where
-    formatTapUnit (TapUnit ok header info) =
-        ((if ok then "ok " else "not ok ") ++ header) :
-        map ("     " ++) (concatMap lines info)
 
 --------------------------------------------------------------------------------
 
@@ -313,11 +305,18 @@ runExecution env execution@Execution {..} = do
             , erStderr   = actualErr
             }
 
+--------------------------------------------------------------------------------
+
 data AssertResult = AssertResult
-    { arAssert  :: Assert String
-    , arOk      :: Bool
+    { arOk      :: Bool
+    , arHeader  :: String
     , arMessage :: [String]
-    }
+    } deriving (Show)
+
+assertResultToTap :: AssertResult -> [String]
+assertResultToTap ar  =
+    ((if arOk ar then "ok " else "not ok ") ++ arHeader ar) :
+    map ("     " ++) (concatMap lines $ arMessage ar)
 
 -- | Check a single assertion.
 runAssert
@@ -329,7 +328,7 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                     ExitSuccess   -> 0
                     ExitFailure c -> c
                 success = expectedExitCode == actualExitCode in
-            pure $ AssertResult assert success
+            pure $ makeAssertResult success
                 ["expected " ++ show expectedExitCode ++
                     " but got " ++ show actualExitCode | not success]
 
@@ -343,10 +342,10 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
             let path = inExecutionDir createdFilePath
             exists <- Dir.doesFileExist path
             case exists of
-                False -> pure $ AssertResult assert False
+                False -> pure $ makeAssertResult False
                     [createdFilePath ++ " was not created"]
                 True -> case createdFileContents of
-                    Nothing           -> pure $ AssertResult assert True []
+                    Nothing           -> pure $ makeAssertResult True []
                     Just expectedPath -> do
                         !actual <- readFileOrEmpty path
                         ar <- checkAgainstFile
@@ -361,14 +360,17 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
             let path = inExecutionDir createdDirectoryPath
             exists <- Dir.doesDirectoryExist path
             case exists of
-                False -> pure $ AssertResult assert False
+                False -> pure $ makeAssertResult False
                     [createdDirectoryPath ++ " was not created"]
                 True -> do
                     Dir.removeDirectoryRecursive path
                     logDebug (envLogger env)
                         [executionHeader execution ++ "removed " ++ path]
-                    pure $ AssertResult assert True []
+                    pure $ makeAssertResult True []
   where
+    makeAssertResult ok = AssertResult ok
+        (executionHeader execution ++ describeAssert assert)
+
     inExecutionDir :: FilePath -> FilePath
     inExecutionDir fp =
         if FP.isAbsolute fp then fp else executionDirectory FP.</> fp
@@ -389,22 +391,19 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                         (lines expected')
                         (lines actual1')
 
-        pure AssertResult
-            { arAssert  = assert
-            , arOk      = success
-            , arMessage = concat $
-                [ [ "expected:"
-                  , show expected
-                  , "actual:"
-                  , show actual1
-                  ]
-                | not success && envDiff env
-                ] ++
-                [ [ "diff:", ppDiff diff ]
-                | not success && envPrettyDiff env
-                ] ++
-                [ ["fixed " ++ expectedPath] | shouldFix ]
-            }
+        when shouldFix $ B.writeFile expectedPath actual1
+        pure . makeAssertResult success . concat $
+            [ [ "expected:"
+              , show expected
+              , "actual:"
+              , show actual1
+              ]
+            | not success && envDiff env
+            ] ++
+            [ [ "diff:", ppDiff diff ]
+            | not success && envPrettyDiff env
+            ] ++
+            [ ["fixed " ++ expectedPath] | shouldFix ]
 
 
 --------------------------------------------------------------------------------
@@ -525,22 +524,16 @@ main = do
     let numJobs       = oJobs options
         numAsserts    = sum $
             map (length . specAsserts . executionSpec) executions
-    logNumUnits (envLogger env) numAsserts
+    logOut (envLogger env) ["1.." ++ show numAsserts]
     pool <- IORef.newIORef executions
 
     -- Spawn some workers to run the executions.
     Async.replicateConcurrently_ numJobs $ worker pool $ \execution -> do
         executionResult <- runExecution env execution
-        forM_ (zip [1 :: Int ..] (specAsserts $ executionSpec execution)) $
-            \(i, assert) -> do
-                assertResult <- runAssert env execution executionResult assert
-                let tapUnit = TapUnit
-                        (arOk assertResult)
-                        (executionHeader execution ++ show i ++ " " ++
-                            describeAssert assert)
-                        (arMessage assertResult)
-                unless (arOk assertResult) $ IORef.writeIORef failed True
-                logTapUnit (envLogger env) tapUnit
+        forM_ (specAsserts $ executionSpec execution) $ \assert -> do
+            assertResult <- runAssert env execution executionResult assert
+            unless (arOk assertResult) $ IORef.writeIORef failed True
+            logOut (envLogger env) $ assertResultToTap assertResult
 
     -- Report summary.
     hasFailed <- IORef.readIORef failed
