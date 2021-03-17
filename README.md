@@ -1,10 +1,12 @@
 # goldplate 🏅
 
     $ goldplate -j2 tests/
-    Found 32 specs
-    Running 49 executions in 2 jobs
-    Finished in 0.84s
-    Ran 32 specs, 49 executions, 146 asserts, all A-OK!
+    1..26
+    ok tests/prettify-json.goldplate: exit_code
+    ok tests/prettify-json.goldplate: stdout
+    ok tests/env.goldplate: exit_code
+    ok tests/env.goldplate: stdout
+    ...
 
 `goldplate` is a cute and simple opaque [golden test] runner for CLI
 applications.  You place your test cases in a directory, annotate them with
@@ -22,6 +24,7 @@ Give `goldplate` a try if:
 At [Fugue](https://fugue.co), we've been using internal versions of this tool
 since 2016, so it should be pretty stable.
 
+`goldplate` produces output compatible with the [Test Anything Protocol].
 
 ## Table of Contents
 
@@ -82,18 +85,21 @@ We haven't created `hello-world.txt` yet, but that's not a problem.  We can
 invoke `goldplate --fix` to create it:
 
     $ goldplate echo.goldplate --pretty-diff --fix
-    ...
-    echo.goldplate: stdout: does not match
-    echo.goldplate: fixed ./hello-world.txt
-    ...
-    Ran 1 specs, 1 executions, 2 asserts, 1 failed.
+    1..2
+    ok echo.goldplate: exit_code
+    not ok echo.goldplate: stdout
+         diff:
+         0a1
+         > Hello, world!
+         fixed ./hello-world.txt
 
 After `hello-world.txt` has been created with proper contents, subsequent
 `goldplate` invocations will pass:
 
     $ goldplate echo.goldplate
-    ...
-    Ran 1 specs, 1 executions, 2 asserts, all A-OK!
+    1..2
+    ok echo.goldplate: exit_code
+    ok echo.goldplate: stdout
 
 You can view the full example here:
 
@@ -255,3 +261,4 @@ over smoke:
 [golden test]: https://ro-che.info/articles/2017-12-04-golden-tests
 [stack]: https://docs.haskellstack.org/en/stable/README/
 [smoke]: https://github.com/SamirTalwar/smoke
+[Test Anything Protocol]: http://testanything.org/

@@ -12,12 +12,10 @@ module Main
     ) where
 
 import           Control.Applicative       ((<|>))
-import           Control.Concurrent        (threadDelay)
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
 import           Control.Exception         (finally, throwIO)
-import           Control.Monad             (forM, forM_, forever, mzero, unless,
-                                            when)
+import           Control.Monad             (forM, forM_, mzero, unless, when)
 import qualified Data.Aeson                as A
 import qualified Data.Aeson.Encode.Pretty  as Aeson.Pretty
 import           Data.Algorithm.Diff
@@ -31,8 +29,6 @@ import qualified Data.IORef                as IORef
 import qualified Data.List                 as List
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
-import           Data.Time                 (NominalDiffTime, diffUTCTime,
-                                            getCurrentTime)
 import           Data.Version              (showVersion)
 import qualified Options.Applicative       as OA
 import           Paths_goldplate           (version)
@@ -43,7 +39,6 @@ import qualified System.FilePath           as FP
 import qualified System.FilePath.Glob      as Glob
 import qualified System.IO                 as IO
 import qualified System.Process            as Process
-import           Text.Printf               (printf)
 import qualified Text.Regex.PCRE.Simple    as Pcre
 import           Text.Splice
 
@@ -165,18 +160,21 @@ describeAssert (CreatedDirectoryAssert _) = "created_directory"
 
 --------------------------------------------------------------------------------
 
--- | Embarrassingly simple logger.
-type Logger = Verbosity -> [String] -> IO ()
-
-data Verbosity = Debug | Message | Error
-    deriving (Eq, Ord)
+data Logger = Logger
+    { logDebug :: [String] -> IO ()
+    , logError :: [String] -> IO ()
+    , logOut   :: [String] -> IO ()
+    }
 
 makeLogger :: Bool -> IO Logger
 makeLogger verbose = do
     lock <- MVar.newMVar ()
-    return $ \verbosity msgs ->
-        unless (not verbose && verbosity == Debug) $
-            MVar.withMVar lock $ \() -> mapM_ (IO.hPutStrLn IO.stderr) msgs
+    let writeLines h ls = MVar.withMVar lock $ \() -> mapM_ (IO.hPutStrLn h) ls
+    return Logger
+        { logDebug = if verbose then writeLines IO.stderr else \_ -> pure ()
+        , logError = writeLines IO.stderr
+        , logOut   = writeLines IO.stdout
+        }
 
 --------------------------------------------------------------------------------
 
@@ -249,16 +247,11 @@ executionHeader execution =
 --------------------------------------------------------------------------------
 
 data Env = Env
-    { envLogger        :: !Logger
-    , envDiff          :: !Bool
-    , envPrettyDiff    :: !Bool
-    , envFix           :: !Bool
-    , envCountAsserts  :: !(IORef.IORef Int)
-    , envCountFailures :: !(IORef.IORef Int)
+    { envLogger     :: !Logger
+    , envDiff       :: !Bool
+    , envPrettyDiff :: !Bool
+    , envFix        :: !Bool
     }
-
-incrementCount :: IORef.IORef Int -> IO ()
-incrementCount ref = IORef.atomicModifyIORef' ref (\x -> (x + 1, ()))
 
 data ExecutionResult = ExecutionResult
     { erExitCode :: !ExitCode
@@ -267,10 +260,10 @@ data ExecutionResult = ExecutionResult
     } deriving (Show)
 
 runExecution
-    :: Env -> Execution -> IO ()
+    :: Env -> Execution -> IO ExecutionResult
 runExecution env execution@Execution {..} = do
     let Spec {..} = executionSpec
-    envLogger env Debug [executionHeader execution ++ "running..."]
+    logDebug (envLogger env) [executionHeader execution ++ "running..."]
 
     -- Create a "CreateProcess" description.
     let createProcess = (Process.proc specCommand specArguments)
@@ -282,7 +275,7 @@ runExecution env execution@Execution {..} = do
             }
 
     -- Actually run the process.
-    envLogger env Debug [executionHeader execution ++
+    logDebug (envLogger env) [executionHeader execution ++
         specCommand ++ " " ++ unwords specArguments]
     (Just hIn, Just hOut, Just hErr, hProc) <-
         Process.createProcess createProcess
@@ -300,33 +293,44 @@ runExecution env execution@Execution {..} = do
         !exitCode  <- Async.wait exitAsync
         !actualOut <- Async.wait outAsync
         !actualErr <- Async.wait errAsync
-        let executionResult = ExecutionResult
-                { erExitCode = exitCode
-                , erStdout   = actualOut
-                , erStderr   = actualErr
-                }
+        logDebug (envLogger env)
+            [ executionHeader execution ++ "finished"
+            , "exit code: " ++ show exitCode
+            , "stdout:", show actualOut
+            , "stderr:", show actualErr
+            ]
+        pure ExecutionResult
+            { erExitCode = exitCode
+            , erStdout   = actualOut
+            , erStderr   = actualErr
+            }
 
-        -- Dump stderr/stdout if in debug.
-        envLogger env Debug [executionHeader execution ++ "finished"]
-        envLogger env Debug [executionHeader execution ++ "stdout:", show actualOut]
-        envLogger env Debug [executionHeader execution ++ "stderr:", show actualErr]
+--------------------------------------------------------------------------------
 
-        -- Perform checks.
-        envLogger env Debug [executionHeader execution ++ "checking assertions..."]
-        forM_ specAsserts $ runAssert env execution executionResult
-        envLogger env Debug [executionHeader execution ++ "done"]
+data AssertResult = AssertResult
+    { arOk      :: Bool
+    , arHeader  :: String
+    , arMessage :: [String]
+    } deriving (Show)
+
+assertResultToTap :: AssertResult -> [String]
+assertResultToTap ar  =
+    ((if arOk ar then "ok " else "not ok ") ++ arHeader ar) :
+    map ("     " ++) (concatMap lines $ arMessage ar)
 
 -- | Check a single assertion.
-runAssert :: Env -> Execution -> ExecutionResult -> Assert String -> IO ()
+runAssert
+    :: Env -> Execution -> ExecutionResult -> Assert String -> IO AssertResult
 runAssert env execution@Execution {..} ExecutionResult {..} assert =
     case assert of
-        ExitCodeAssert expectedExitCode -> do
+        ExitCodeAssert expectedExitCode ->
             let actualExitCode = case erExitCode of
                     ExitSuccess   -> 0
                     ExitFailure c -> c
-            assertTrue (actualExitCode == expectedExitCode) $
-                "expected " ++ show expectedExitCode ++
-                " but got " ++ show actualExitCode
+                success = expectedExitCode == actualExitCode in
+            pure $ makeAssertResult success
+                ["expected " ++ show expectedExitCode ++
+                    " but got " ++ show actualExitCode | not success]
 
         StdoutAssert {..} -> checkAgainstFile
             (inExecutionDir stdoutFilePath) stdoutPostProcess erStdout
@@ -337,72 +341,70 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
         CreatedFileAssert {..} -> do
             let path = inExecutionDir createdFilePath
             exists <- Dir.doesFileExist path
-            assertTrue exists $ createdFilePath ++ " was not created"
-            when exists $ do
-                case createdFileContents of
-                    Nothing           -> return ()
+            case exists of
+                False -> pure $ makeAssertResult False
+                    [createdFilePath ++ " was not created"]
+                True -> case createdFileContents of
+                    Nothing           -> pure $ makeAssertResult True []
                     Just expectedPath -> do
                         !actual <- readFileOrEmpty path
-                        checkAgainstFile
+                        ar <- checkAgainstFile
                             (inExecutionDir expectedPath)
                             createdFilePostProcess actual
-                Dir.removeFile path
-                envLogger env Debug [executionHeader execution ++
-                    "removed " ++ createdFilePath]
+                        Dir.removeFile path
+                        logDebug (envLogger env)
+                            [executionHeader execution ++ "removed " ++ path]
+                        pure ar
 
         CreatedDirectoryAssert {..} -> do
             let path = inExecutionDir createdDirectoryPath
             exists <- Dir.doesDirectoryExist path
-            assertTrue exists $ createdDirectoryPath ++ " was not created"
-            when exists $ do
-                Dir.removeDirectoryRecursive path
-                envLogger env Debug [executionHeader execution ++
-                    "removed " ++ createdDirectoryPath]
+            case exists of
+                False -> pure $ makeAssertResult False
+                    [createdDirectoryPath ++ " was not created"]
+                True -> do
+                    Dir.removeDirectoryRecursive path
+                    logDebug (envLogger env)
+                        [executionHeader execution ++ "removed " ++ path]
+                    pure $ makeAssertResult True []
   where
+    makeAssertResult ok = AssertResult ok
+        (executionHeader execution ++ describeAssert assert)
+
     inExecutionDir :: FilePath -> FilePath
     inExecutionDir fp =
         if FP.isAbsolute fp then fp else executionDirectory FP.</> fp
 
-    checkAgainstFile :: FilePath -> PostProcess -> B.ByteString -> IO ()
+    checkAgainstFile
+        :: FilePath -> PostProcess -> B.ByteString -> IO AssertResult
     checkAgainstFile expectedPath processor actual0 = do
         expected <- readFileOrEmpty expectedPath
         let !actual1 = postProcess processor actual0
-        assertTrue (actual1 == expected) "does not match"
-        when (envDiff env && actual1 /= expected) $ do
-            envLogger env Message
-                [ executionHeader execution ++ "expected:"
-                , show expected
-                , executionHeader execution ++ "actual:"
-                , show actual1
-                ]
-        let diff :: [Diff [String]] = either (const []) id $ do
+            success = actual1 == expected
+            shouldFix = envFix env && not success
+
+            diff :: [Diff [String]] = either (const []) id $ do
                 expected' <- T.unpack <$> T.decodeUtf8' expected
                 actual1'  <- T.unpack <$> T.decodeUtf8' actual1
                 return $
                     getGroupedDiff
                         (lines expected')
                         (lines actual1')
-        when (envPrettyDiff env && actual1 /= expected && not (null diff)) $ do
-            envLogger env Message
-                [ executionHeader execution ++ "diff:"
-                , ppDiff diff
-                ]
-        when (envFix env && actual1 /= expected) $ do
-            B.writeFile expectedPath actual1
-            envLogger env Message
-                [executionHeader execution ++ "fixed " ++ expectedPath]
 
-    assertTrue :: Bool -> String -> IO ()
-    assertTrue test err = do
-        incrementCount (envCountAsserts env)
-        if test
-            then
-                envLogger env Debug [executionHeader execution ++
-                    describeAssert assert ++ ": OK"]
-            else do
-                envLogger env Error [executionHeader execution ++
-                    describeAssert assert ++ ": " ++ err]
-                incrementCount (envCountFailures env)
+        when shouldFix $ B.writeFile expectedPath actual1
+        pure . makeAssertResult success . concat $
+            [ [ "expected:"
+              , show expected
+              , "actual:"
+              , show actual1
+              ]
+            | not success && envDiff env
+            ] ++
+            [ [ "diff:", ppDiff diff ]
+            | not success && envPrettyDiff env
+            ] ++
+            [ ["fixed " ++ expectedPath] | shouldFix ]
+
 
 --------------------------------------------------------------------------------
 
@@ -451,7 +453,7 @@ parseOptions = Options
             OA.help    "Test files/directories"))
     <*> OA.switch (
             OA.short   'v' <>
-            OA.help    "Be more verbose")
+            OA.help    "Print debug info")
     <*> OA.switch (
             OA.long    "diff" <>
             OA.help    "Show differences in files")
@@ -491,15 +493,13 @@ worker pool f = do
 
 main :: IO ()
 main = do
-    startTime <- getCurrentTime
-    options   <- OA.execParser parserInfo
-    env       <- Env
+    options <- OA.execParser parserInfo
+    failed  <- IORef.newIORef False
+    env     <- Env
         <$> makeLogger (oVerbose options)
         <*> pure (oDiff options)
         <*> pure (oPrettyDiff options)
         <*> pure (oFix options)
-        <*> IORef.newIORef 0
-        <*> IORef.newIORef 0
 
     -- Find all specs and decode them.
     specPaths <- findSpecs (oPaths options)
@@ -508,7 +508,7 @@ main = do
         case errOrSpec of
             Right !spec -> return (specPath, spec)
             Left  !err  -> do
-                envLogger env Error
+                logError (envLogger env)
                     [specPath ++ ": could not parse JSON: " ++ err]
                 exitFailure
 
@@ -516,50 +516,25 @@ main = do
     -- parallelize this because 'specExecutions' needs to change the working
     -- directory all the time and that might mess with our tests.
     let numSpecs = length specs
-    envLogger env Message ["Found " ++ show numSpecs ++ " specs"]
+    logDebug (envLogger env) ["Found " ++ show numSpecs ++ " specs"]
     executions <- fmap concat $ forM specs $
         \(specPath, spec) -> specExecutions specPath spec
 
     -- Create a pool full of executions.
-    let numExecutions = length executions
-        numJobs       = oJobs options
-    envLogger env Message ["Running " ++ show numExecutions ++
-        " executions in " ++ show numJobs ++ " jobs"]
+    let numJobs       = oJobs options
+        numAsserts    = sum $
+            map (length . specAsserts . executionSpec) executions
+    logOut (envLogger env) ["1.." ++ show numAsserts]
     pool <- IORef.newIORef executions
 
-    -- Spawn a worker to report progress
-    progress <- Async.async $ forever $ do
-        threadDelay $ 10 * 1000 * 1000
-        remaining <- length <$> IORef.readIORef pool
-        envLogger env Message $ return $
-            "Progress: " ++ show (numExecutions - remaining) ++ "/" ++
-            show numExecutions ++ "..."
-
     -- Spawn some workers to run the executions.
-    Async.replicateConcurrently_ numJobs $ worker pool (runExecution env)
-    Async.cancel progress
-
-    -- Tell the time.
-    endTime <- getCurrentTime
-    envLogger env Message
-        ["Finished in " ++ showDiffTime (endTime `diffUTCTime` startTime)]
+    Async.replicateConcurrently_ numJobs $ worker pool $ \execution -> do
+        executionResult <- runExecution env execution
+        forM_ (specAsserts $ executionSpec execution) $ \assert -> do
+            assertResult <- runAssert env execution executionResult assert
+            unless (arOk assertResult) $ IORef.writeIORef failed True
+            logOut (envLogger env) $ assertResultToTap assertResult
 
     -- Report summary.
-    asserts       <- IORef.readIORef (envCountAsserts  env)
-    failures      <- IORef.readIORef (envCountFailures env)
-    if failures == 0
-        then
-            envLogger env Message [
-                "Ran " ++ show numSpecs ++ " specs, " ++
-                show numExecutions ++ " executions, " ++
-                show asserts ++ " asserts, all A-OK!"]
-        else do
-            envLogger env Error [
-                "Ran " ++ show numSpecs ++ " specs, " ++
-                show numExecutions ++ " executions, " ++
-                show asserts ++ " asserts, " ++ show failures ++ " failed."]
-            exitFailure
-
-
-showDiffTime :: NominalDiffTime -> String
-showDiffTime dt = printf "%.2fs" (fromRational (toRational dt) :: Double)
+    hasFailed <- IORef.readIORef failed
+    when hasFailed exitFailure
