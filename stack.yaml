@@ -1,4 +1,7 @@
-resolver: 'lts-17.2'
+resolver: 'lts-17.9'
 
 packages:
 - '.'
+
+extra-deps:
+- 'optparse-applicative-0.16.1.0'
