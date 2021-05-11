@@ -27,7 +27,6 @@ import           Data.Function             (on)
 import qualified Data.HashMap.Strict       as HMS
 import qualified Data.IORef                as IORef
 import qualified Data.List                 as List
-import           Data.Maybe                (fromMaybe)
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import           Data.Version              (showVersion)
@@ -67,7 +66,7 @@ data Spec a = Spec
     , specArguments  :: ![a]
     , specStdin      :: !(Maybe (Multiple a))
     , specEnv        :: ![(a, a)]
-    , specExecDir    :: !(Maybe a)
+    , specWorkDir    :: !(Maybe a)
     , specAsserts    :: ![Assert a]
     } deriving (Foldable, Functor, Traversable)
 
@@ -78,7 +77,7 @@ instance A.FromJSON (Spec String) where
         <*> o A..:? "arguments" A..!= []
         <*> o A..:? "stdin"
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
-        <*> o A..:? "execution_directory"
+        <*> o A..:? "work_directory"
         <*> o A..:  "asserts"
 
 --------------------------------------------------------------------------------
@@ -226,6 +225,10 @@ specExecutions specPath spec = do
                     ("GOLDPLATE_INPUT_BASENAME", snd $ FP.splitFileName inputFile) :
                     env1
 
+            mkAbsoluteWorkDir :: FilePath -> FilePath
+            mkAbsoluteWorkDir dir | FP.isRelative dir = specDirectory FP.</> dir
+                                  | otherwise         = dir
+
         -- Return execution after doing some splicing.
         hoistEither $ do
             spec' <- traverse (splice env2) spec
@@ -234,11 +237,12 @@ specExecutions specPath spec = do
                 , executionInputFile = mbInputFile
                 , executionSpecPath  = specPath
                 , executionSpecName  = specName
-                , executionDirectory = fromMaybe specDirectory (specExecDir spec)
+                , executionDirectory = maybe specDirectory mkAbsoluteWorkDir (specWorkDir spec)
                 }
   where
     hoistEither :: Either MissingEnvVar a -> IO a
     hoistEither = either throwIO return
+
 
 executionHeader :: Execution -> String
 executionHeader execution =
