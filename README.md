@@ -33,6 +33,8 @@ since 2016, so it should be pretty stable.
     -   [Feeding input on stdin](#feeding-input-on-stdin)
     -   [Setting environment
         variables](#setting-environment-variables)
+    -   [Setting work
+        directory](#setting-work-directory)
     -   [Globbing input files](#globbing-input-files)
     -   [Post processing: find and
         replace](#post-processing-find-and-replace)
@@ -137,6 +139,20 @@ Rather than:
     {"stdout": "env.stdout"}
 
 We found this to be good practice, it makes mass-renaming of tests much easier.
+
+### Setting work directory
+
+View example:
+
+ -  [`tests/work-dir.goldplate`](tests/work-dir.goldplate)
+ -  [`tests/work-dir.stdout`](tests/work-dir.stdout)
+
+The `work_directory` field can be used to set the work directory in which the
+command will be executed. It can either be an absolute path or a path relative
+to the `goldplate` file.
+
+If a work directory is not specified the `command` will be executed in the
+same directory as the `goldplate` file.
 
 ### Globbing input files
 
