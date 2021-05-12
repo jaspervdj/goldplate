@@ -1,0 +1,9 @@
+{
+    "command": "cat",
+    "work_directory": "work-dir",
+    "arguments": ["work-dir.txt"],
+    "asserts": [
+        {"exit_code": 0},
+        {"stdout": "../work-dir.stdout"}
+    ]
+}
