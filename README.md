@@ -149,7 +149,8 @@ View example:
 
 The `work_directory` field can be used to set the work directory in which the
 command will be executed. It can either be an absolute path or a path relative
-to the `goldplate` file.
+to the `goldplate` file. If a `work directory` is specified then the fields
+`input_files` and `stdout` need to be relative to the `work directory`.
 
 If a work directory is not specified the `command` will be executed in the
 same directory as the `goldplate` file.
