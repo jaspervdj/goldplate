@@ -77,7 +77,7 @@ instance A.FromJSON (Spec String) where
         <*> o A..:? "arguments" A..!= []
         <*> o A..:? "stdin"
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
-        <*> o A..:? "work_directory"
+        <*> o A..:? "working_directory"
         <*> o A..:  "asserts"
 
 --------------------------------------------------------------------------------

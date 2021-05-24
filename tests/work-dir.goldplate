@@ -1,6 +1,6 @@
 {
     "command": "cat",
-    "work_directory": "work-dir",
+    "working_directory": "work-dir",
     "input_files": "work-dir-2.txt",
     "arguments": ["work-dir-1.txt", "${GOLDPLATE_INPUT_FILE}"],
     "asserts": [
