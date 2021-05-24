@@ -66,6 +66,7 @@ data Spec a = Spec
     , specArguments  :: ![a]
     , specStdin      :: !(Maybe (Multiple a))
     , specEnv        :: ![(a, a)]
+    , specWorkDir    :: !(Maybe a)
     , specAsserts    :: ![Assert a]
     } deriving (Foldable, Functor, Traversable)
 
@@ -76,6 +77,7 @@ instance A.FromJSON (Spec String) where
         <*> o A..:? "arguments" A..!= []
         <*> o A..:? "stdin"
         <*> (maybe [] HMS.toList <$> o A..:? "environment")
+        <*> o A..:? "working_directory"
         <*> o A..:  "asserts"
 
 --------------------------------------------------------------------------------
@@ -190,15 +192,22 @@ data Execution = Execution
 
 specExecutions :: FilePath -> Spec String -> IO [Execution]
 specExecutions specPath spec = do
+    absoluteSpecPath <- Dir.makeAbsolute specPath
     let (specDirectory, specBaseName) = FP.splitFileName specPath
         specName                      = FP.dropExtension specBaseName
+
+        mkAbsoluteWorkDir :: FilePath -> FilePath
+        mkAbsoluteWorkDir dir | FP.isRelative dir = specDirectory FP.</> dir
+                              | otherwise         = dir
+
+        workDirectory = maybe specDirectory mkAbsoluteWorkDir (specWorkDir spec) 
 
     -- Compute initial environment to get input files.
     env0 <- getEnvironment
     let env1 =
             List.nubBy ((==) `on` fst) $
                 ("GOLDPLATE_NAME", specName) :
-                ("GOLDPLATE_FILE", specBaseName) :
+                ("GOLDPLATE_FILE", absoluteSpecPath) :
                 ("GOLDPLATE_BASENAME", specBaseName) :
                 specEnv spec ++ env0
 
@@ -207,7 +216,7 @@ specExecutions specPath spec = do
         Nothing    -> return [Nothing]
         Just glob0 -> do
             glob <- hoistEither $ splice env1 glob0
-            inputFiles <- Dir.withCurrentDirectory specDirectory $ do
+            inputFiles <- Dir.withCurrentDirectory workDirectory $ do
                 matches <- globCurrentDir glob
                 length matches `seq` return matches
             return (map (Just . FP.normalise) inputFiles)
@@ -231,11 +240,12 @@ specExecutions specPath spec = do
                 , executionInputFile = mbInputFile
                 , executionSpecPath  = specPath
                 , executionSpecName  = specName
-                , executionDirectory = specDirectory
+                , executionDirectory = workDirectory
                 }
   where
     hoistEither :: Either MissingEnvVar a -> IO a
     hoistEither = either throwIO return
+
 
 executionHeader :: Execution -> String
 executionHeader execution =

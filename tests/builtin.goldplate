@@ -11,6 +11,10 @@
     ],
     "asserts": [
         {"exit_code": 0},
-        {"stdout": "${GOLDPLATE_NAME}.stdout"}
+        {
+            "stdout": "${GOLDPLATE_NAME}.stdout",
+            "post_process": {"pattern": "^GOLDPLATE_FILE.*", "replacement": "GOLDPLATE_FILE: builtin.goldplate"}
+        }
     ]
 }
+

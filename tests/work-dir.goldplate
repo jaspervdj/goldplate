@@ -1,0 +1,10 @@
+{
+    "command": "cat",
+    "working_directory": "work-dir",
+    "input_files": "work-dir-2.txt",
+    "arguments": ["work-dir-1.txt", "${GOLDPLATE_INPUT_FILE}"],
+    "asserts": [
+        {"exit_code": 0},
+        {"stdout": "work-dir.stdout"}
+    ]
+}
