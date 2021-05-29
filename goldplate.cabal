@@ -66,5 +66,6 @@ Test-suite tests
   Ghc-options:        -threaded
   Main-is:            Tests.hs
   Build-depends:      base, filepath, process
+  Build-tool-depends: goldplate:goldplate
   Hs-source-dirs:     tests
   Other-modules:      Paths_goldplate
