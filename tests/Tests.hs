@@ -1,5 +1,10 @@
-import System.Exit    ( exitWith )
-import System.Process ( system )
+import System.Exit     ( exitWith  )
+import System.Process  ( system    )
+import System.FilePath ( (</>)     )
+
+import Paths_goldplate ( getBinDir )
 
 main :: IO ()
-main = exitWith =<< system "cabal run -- goldplate tests"
+main = do
+  bindir <- getBinDir
+  exitWith =<< system (bindir </> "goldplate tests")

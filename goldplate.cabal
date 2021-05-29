@@ -65,5 +65,6 @@ Test-suite tests
   Type:               exitcode-stdio-1.0
   Ghc-options:        -threaded
   Main-is:            Tests.hs
-  Build-depends:      base, process
+  Build-depends:      base, filepath, process
   Hs-source-dirs:     tests
+  Other-modules:      Paths_goldplate
