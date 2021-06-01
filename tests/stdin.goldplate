@@ -1,7 +1,6 @@
 {
-    "command": "wc",
-    "arguments": ["-c"],
-    "stdin": "hi",
+    "command": "rev",
+    "stdin": "hello world",
     "asserts": [
         {"exit_code": 0},
         {"stdout": "stdin.stdout"}
