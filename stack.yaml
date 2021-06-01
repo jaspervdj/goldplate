@@ -5,3 +5,7 @@ packages:
 
 extra-deps:
 - 'optparse-applicative-0.16.1.0'
+
+nix:
+  packages:
+  - 'utillinux'  # For `rev`.
