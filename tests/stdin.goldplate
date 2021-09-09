@@ -1,5 +1,5 @@
 {
-    "command": "rev",
+    "command": "cat",
     "stdin": "hello world",
     "asserts": [
         {"exit_code": 0},
