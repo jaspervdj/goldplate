@@ -200,7 +200,7 @@ specExecutions specPath spec = do
         mkAbsoluteWorkDir dir | FP.isRelative dir = specDirectory FP.</> dir
                               | otherwise         = dir
 
-        workDirectory = maybe specDirectory mkAbsoluteWorkDir (specWorkDir spec) 
+        workDirectory = maybe specDirectory mkAbsoluteWorkDir (specWorkDir spec)
 
     -- Compute initial environment to get input files.
     env0 <- getEnvironment
@@ -480,9 +480,17 @@ parseOptions = Options
             OA.help    "Number of worker jobs")
 
 parserInfo :: OA.ParserInfo Options
-parserInfo = OA.info (OA.helper <*> parseOptions) $
+parserInfo = OA.info (OA.helper <*> versionOption <*> parseOptions) $
     OA.fullDesc <>
-    OA.header ("goldplate v" <> showVersion version)
+    OA.header goldplateVersion
+  where
+  versionOption = OA.infoOption goldplateVersion $
+    OA.long    "version" <>
+    OA.short   'V'       <>
+    OA.help    "Show version info" <>
+    OA.hidden
+  goldplateVersion :: String
+  goldplateVersion = "goldplate v" <> showVersion version
 
 --------------------------------------------------------------------------------
 
