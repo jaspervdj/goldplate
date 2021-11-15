@@ -14,8 +14,9 @@ Cabal-version: 1.18
 Description:   Language-agnostic golden test runner for command-line applications.
 
 Tested-with:
+  GHC == 9.2.0.20210821
   GHC == 9.0.1
-  GHC == 8.10.4
+  GHC == 8.10.7
   GHC == 8.8.4
   GHC == 8.6.5
   GHC == 8.4.4
@@ -45,7 +46,7 @@ Executable goldplate
     Paths_goldplate
 
   Build-depends:
-    aeson                >= 1.4  && < 1.6,
+    aeson                >= 1.4  && < 2.1,
     aeson-pretty         >= 0.8  && < 0.9,
     async                >= 2.2  && < 2.3,
     base                 >= 4.11 && < 5,
