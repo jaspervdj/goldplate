@@ -512,7 +512,7 @@ worker pool f = do
 main :: IO ()
 main = do
     options <- OA.execParser parserInfo
-    failed  <- IORef.newIORef False
+    failed  <- IORef.newIORef (0 :: Int)
     env     <- Env
         <$> makeLogger (oVerbose options)
         <*> pure (oDiff options)
@@ -550,9 +550,13 @@ main = do
         executionResult <- runExecution env execution
         forM_ (specAsserts $ executionSpec execution) $ \assert -> do
             assertResult <- runAssert env execution executionResult assert
-            unless (arOk assertResult) $ IORef.writeIORef failed True
+            unless (arOk assertResult) $ IORef.atomicModifyIORef' failed $
+                \x -> (x + 1, ())
             logOut (envLogger env) $ assertResultToTap assertResult
 
     -- Report summary.
-    hasFailed <- IORef.readIORef failed
-    when hasFailed exitFailure
+    numFailed <- IORef.readIORef failed
+    logOut (envLogger env) . pure $
+        "# goldplate ran " ++ show numAsserts ++ " asserts, " ++
+        (if numFailed > 0 then show numFailed ++ " failed" else "all OK")
+    when (numFailed > 0) exitFailure
