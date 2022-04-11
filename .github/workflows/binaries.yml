@@ -27,10 +27,10 @@ jobs:
 
     - name: Setup Haskell Stack
       uses: haskell/actions/setup@v1
-        with:
-          enable-stack: true
-          stack-no-global: true
-          stack-setup-ghc: true
+      with:
+        enable-stack: true
+        stack-no-global: true
+        stack-setup-ghc: true
 
     - name: Build
       run: stack build
