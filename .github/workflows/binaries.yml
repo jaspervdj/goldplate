@@ -1,4 +1,4 @@
-name: CI
+name: Binaries
 
 on: ['pull_request', 'push']
 
@@ -30,15 +30,14 @@ jobs:
       with:
         enable-stack: true
         stack-no-global: true
-        stack-setup-ghc: true
 
     - name: Build
       run: stack build
 
     - name: Create artifact
       run: |
-        PLATFORM=uname | tr 'A-Z' 'a-z'
-        VERSION={{ steps.get_version.outputs.version }}
+        PLATFORM=$(uname | tr 'A-Z' 'a-z')
+        VERSION=${{ steps.get_version.outputs.version }}
         cp $(stack path --local-install-root)/bin/goldplate goldplate
         tar -czf goldplate goldplate.tar.gz
         mkdir -p artifacts
