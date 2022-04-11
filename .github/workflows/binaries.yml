@@ -1,0 +1,99 @@
+name: CI
+
+on: ['pull_request', 'push']
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+        stack: ["2.1.3"]
+        ghc: ["8.8.3"]
+
+    steps:
+    - name: Get the version
+      id: get_version
+      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
+
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-haskell@v1.1.4
+      name: Setup Haskell Stack
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        stack-version: ${{ matrix.stack }}
+
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        path: ~/.stack
+        key: "${{ runner.os }}-${{ matrix.ghc }}-v9-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}"
+
+    - name: Add ~/.local/bin to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Build
+      run: stack build
+
+    - name: Create artifact
+      run: |
+        PLATFORM=uname | tr 'A-Z' 'a-z'
+        VERSION={{ steps.get_version.outputs.version }}
+        cp $(stack path --local-install-root)/bin/goldplate goldplate
+        tar -czf goldplate goldplate.tar.gz
+        mkdir -p artifacts
+        mv goldplate.tar.gz artifacts/goldplate-$VERSION-$PLATFORM-x86_64.tar.gz
+
+    - uses: actions/upload-artifact@v2
+      if: startsWith(github.ref, 'refs/tags')
+      with:
+        path: artifacts/*
+        name: artifacts
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags')
+
+    steps:
+    - name: Get the version
+      id: get_version
+      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -R
+
+    - uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: ${{ steps.get_version.outputs.version }}
+
+    - name: Upload Linux Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
+        asset_name: goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload MacOS Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
+        asset_name: goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
+        asset_content_type: application/zip
