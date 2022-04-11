@@ -1,5 +1,9 @@
 # CHANGELOG
 
+ -  0.2.1 (2022-04-11)
+     *  Print summary line at the end of the TAP format
+     *  Add -V as an alias for --version (by Andreas Abel)
+
  -  0.2.0 (2021-05-24)
      *  Change output to [Test Anything Protocol](https://testanything.org/).
      *  Add `working_directory` field (by Beatrice Vergani).
