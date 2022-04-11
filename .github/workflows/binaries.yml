@@ -42,7 +42,7 @@ jobs:
         PLATFORM=$(uname | tr 'A-Z' 'a-z')
         VERSION=${{ steps.get_version.outputs.version }}
         cp $(stack path --local-install-root)/bin/goldplate goldplate
-        tar -czf goldplate goldplate.tar.gz
+        tar -czf goldplate.tar.gz goldplate
         mkdir -p artifacts
         mv goldplate.tar.gz artifacts/goldplate-$VERSION-$PLATFORM-x86_64.tar.gz
 
