@@ -19,20 +19,18 @@ jobs:
 
     - uses: actions/checkout@v2
 
-    - uses: actions/setup-haskell@v1.1.4
-      name: Setup Haskell Stack
-      with:
-        ghc-version: ${{ matrix.ghc }}
-        stack-version: ${{ matrix.stack }}
-
     - uses: actions/cache@v2
       name: Cache ~/.stack
       with:
         path: ~/.stack
         key: "${{ runner.os }}-${{ matrix.ghc }}-v9-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}"
 
-    - name: Add ~/.local/bin to PATH
-      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: Setup Haskell Stack
+      uses: haskell/actions/setup@v1
+        with:
+          enable-stack: true
+          stack-no-global: true
+          stack-setup-ghc: true
 
     - name: Build
       run: stack build
