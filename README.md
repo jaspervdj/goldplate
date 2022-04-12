@@ -212,7 +212,10 @@ to leave a clean repository behind.
 
 ## Installation
 
-Installation through source is done using standard Haskell tooling -- [Cabal]
+Binaries for Mac OS and Linux are available on the
+[releases page](https://github.com/fugue/goldplate/releases).
+
+Installation from source is done using standard Haskell tooling -- [Cabal]
 and [stack] both work well.
 
 ### Using stack
