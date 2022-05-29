@@ -14,7 +14,8 @@ Cabal-version: 1.18
 Description:   Language-agnostic golden test runner for command-line applications.
 
 Tested-with:
-  GHC == 9.2.1
+  GHC == 9.4.1
+  GHC == 9.2.3
   GHC == 9.0.2
   GHC == 8.10.7
   GHC == 8.8.4
@@ -32,7 +33,7 @@ Source-repository head
 Source-repository this
   type:     git
   location: git://github.com/fugue/goldplate.git
-  tag:      v0.2.0
+  tag:      v0.2.1
 
 Executable goldplate
   Hs-source-dirs:    src
