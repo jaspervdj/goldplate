@@ -47,7 +47,7 @@ Executable goldplate
     Paths_goldplate
 
   Build-depends:
-    aeson                >= 1.4  && < 2.1,
+    aeson                >= 1.4  && < 2.2,
     aeson-pretty         >= 0.8  && < 0.9,
     async                >= 2.2  && < 2.3,
     base                 >= 4.11 && < 5,
