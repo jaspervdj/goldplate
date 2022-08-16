@@ -1,10 +1,7 @@
-resolver: 'lts-18.21'
+resolver: 'lts-19.17'
 
 packages:
 - '.'
-
-extra-deps:
-- 'optparse-applicative-0.16.1.0'
 
 nix:
   packages:
