@@ -212,21 +212,19 @@ specExecutions specPath spec = do
                 specEnv spec ++ env0
 
     -- Get a list of concrete input files (a list maybes).
-    concreteInputFiles <- case specInputFiles spec of
-        Nothing    -> return [Nothing]
+    concreteInputFiles :: [FilePath] <- case specInputFiles spec of
+        Nothing    -> return []
         Just glob0 -> do
             glob <- hoistEither $ splice env1 glob0
             inputFiles <- Dir.withCurrentDirectory workDirectory $ do
                 matches <- globCurrentDir glob
                 length matches `seq` return matches
-            return (map (Just . FP.normalise) inputFiles)
+            return (map FP.normalise inputFiles)
 
     -- Create an execution for every concrete input.
-    forM concreteInputFiles $ \mbInputFile -> do
+    forM concreteInputFiles $ \ inputFile -> do
         -- Extend environment.
-        let env2 = case mbInputFile of
-                Nothing        -> env1
-                Just inputFile ->
+        let env2 =
                     ("GOLDPLATE_INPUT_FILE", inputFile) :
                     ("GOLDPLATE_INPUT_NAME", FP.dropExtension inputFile) :
                     ("GOLDPLATE_INPUT_BASENAME", snd $ FP.splitFileName inputFile) :
@@ -237,7 +235,7 @@ specExecutions specPath spec = do
             spec' <- traverse (splice env2) spec
             pure Execution
                 { executionSpec      = spec' {specEnv = env2}
-                , executionInputFile = mbInputFile
+                , executionInputFile = Just inputFile
                 , executionSpecPath  = specPath
                 , executionSpecName  = specName
                 , executionDirectory = workDirectory
