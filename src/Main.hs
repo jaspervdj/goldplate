@@ -219,7 +219,7 @@ specExecutions specPath spec = do
             inputFiles <- Dir.withCurrentDirectory workDirectory $ do
                 matches <- globCurrentDir glob
                 length matches `seq` return matches
-            return (map FP.normalise inputFiles)
+            return (map normalise inputFiles)
 
     -- Create an execution for every concrete input.
     forM concreteInputFiles $ \ inputFile -> do
@@ -244,6 +244,15 @@ specExecutions specPath spec = do
     hoistEither :: Either MissingEnvVar a -> IO a
     hoistEither = either throwIO return
 
+    -- A version of FP.normalise that uses slash as 'pathSeparator' even under Windows.
+    -- Drops "." directories in the path.
+    -- Should make test outputs that contain filepaths more portable.
+    -- Assumes that the argument is a file rather than a directory.
+    -- This frees us from corner cases such as "." and "./".
+    normalise :: FilePath -> FilePath
+    normalise = List.intercalate "/" . dropDots . FP.splitDirectories
+      where
+        dropDots = filter ("." /=)
 
 executionHeader :: Execution -> String
 executionHeader execution =
