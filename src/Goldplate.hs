@@ -500,7 +500,7 @@ parseOptions = Options
             OA.help    "Number of worker jobs")
 
 parserInfo :: OA.ParserInfo Options
-parserInfo = OA.info (OA.helper <*> versionOption <*> parseOptions) $
+parserInfo = OA.info (OA.helper <*> versionOption <*> numericVersionOption <*> parseOptions) $
     OA.fullDesc <>
     OA.header goldplateVersion
   where
@@ -510,7 +510,14 @@ parserInfo = OA.info (OA.helper <*> versionOption <*> parseOptions) $
     OA.help    "Show version info" <>
     OA.hidden
   goldplateVersion :: String
-  goldplateVersion = "goldplate v" <> showVersion version
+  goldplateVersion = "goldplate v" <> goldplateNumericVersion
+
+  numericVersionOption = OA.infoOption goldplateNumericVersion $
+    OA.long    "numeric-version" <>
+    OA.help    "Show version number" <>
+    OA.hidden
+  goldplateNumericVersion :: String
+  goldplateNumericVersion = showVersion version
 
 --------------------------------------------------------------------------------
 

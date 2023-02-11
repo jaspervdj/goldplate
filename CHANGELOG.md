@@ -2,6 +2,7 @@
 
  -  0.3.0 (2023-02-11)
      *  Use `/` as path separator even under Windows (by Andreas Abel)
+     *  Add option `--numeric-version` (by Andreas Abel)
 
  -  0.2.1.1 (2023-02-26)
      *  Bump `aeson` dependency upper bound to 2.1.
