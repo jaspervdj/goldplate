@@ -70,7 +70,7 @@ jobs:
 
     - name: Get goldplate version
       run: |
-        VERSION="$(stack run -- --numeric-version | tail -1)"
+        VERSION="$(${STACK} run -- --numeric-version | tail -1)"
         echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
 
     - name: Create artifact
