@@ -1,9 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
+
 import qualified Data.Aeson            as A
 import           Data.ByteString.Char8 ()
 import qualified Data.List             as List
 import           Goldplate             (Assert)
+import           System.Environment    (getArgs)
 import           System.Exit           (exitWith)
 import           System.Process        (system)
 
@@ -19,5 +22,7 @@ testAssertMultipleDiscriminator =
 
 main :: IO ()
 main = do
-    testAssertMultipleDiscriminator
-    exitWith =<< system ("goldplate tests")
+  testAssertMultipleDiscriminator
+  args <- getArgs
+  exitWith =<< do
+    system $ unwords $ "goldplate tests" : args
