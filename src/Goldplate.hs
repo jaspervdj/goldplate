@@ -25,6 +25,7 @@ import           Data.Algorithm.Diff
 import           Data.Algorithm.DiffOutput
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy      as BL
+import           Data.Either               (fromRight)
 import qualified Data.Foldable             as F
 import           Data.Function             (on)
 import qualified Data.HashMap.Strict       as HMS
@@ -410,16 +411,15 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
     checkAgainstFile expectedPath processor actual0 = do
         expected <- readFileOrEmpty expectedPath
         let !actual1 = postProcess processor actual0
-            success = actual1 == expected
-            shouldFix = envFix env && not success
 
-            diff :: [Diff [String]] = either (const []) id $ do
-                expected' <- T.unpack <$> T.decodeUtf8' expected
-                actual1'  <- T.unpack <$> T.decodeUtf8' actual1
-                return $
-                    getGroupedDiff
-                        (lines expected')
-                        (lines actual1')
+            -- If we have a UTF8 decoding error, we fall back to Bytestring equality,
+            -- but have no diff.
+            (success, diff) = fromRight (actual1 == expected, []) $ do
+                expected' <- splitLines . T.unpack <$> T.decodeUtf8' expected
+                actual1'  <- splitLines . T.unpack <$> T.decodeUtf8' actual1
+                return (expected' == actual1', getGroupedDiff expected' actual1')
+
+            shouldFix = envFix env && not success
 
         when shouldFix $ B.writeFile expectedPath actual1
         pure . makeAssertResult success . concat $
@@ -435,6 +435,22 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
             ] ++
             [ ["fixed " ++ expectedPath] | shouldFix ]
 
+-- | OS-agnostic version of 'lines'.
+--
+--   From Bryan O' Sullivan's book, "Real World Haskell"
+--   https://github.com/cjwirth/real-world-haskell/blob/3733fb501ca98b6beb44b9814b3a4b4a56b1653f/ch04/SplitLines.hs
+splitLines :: String -> [String]
+splitLines [] = []
+splitLines cs =
+    let (pre, suf) = List.break isLineTerminator cs
+    in pre : case suf of
+                ('\r':'\n':rest) -> splitLines rest
+                ('\r':rest)      -> splitLines rest
+                ('\n':rest)      -> splitLines rest
+                _                -> []
+
+isLineTerminator :: Char -> Bool
+isLineTerminator c = c == '\r' || c == '\n'
 
 --------------------------------------------------------------------------------
 
