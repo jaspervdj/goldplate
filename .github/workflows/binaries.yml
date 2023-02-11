@@ -22,9 +22,6 @@ jobs:
         ghc: ["9.2.5"]
 
     steps:
-    - name: Get the version
-      id: get_version
-      run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
     - uses: actions/checkout@v3
 
@@ -49,11 +46,15 @@ jobs:
     - name: Test
       run: stack test
 
+    - name: Get goldplate version
+      run: |
+        VERSION="$(stack run -- --numeric-version | tail -1)"
+        echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
     - name: Create artifact
       # if: startsWith(github.ref, 'refs/tags/v')
       run: |
         PLATFORM="$(uname | tr 'A-Z' 'a-z')"
-        VERSION="${{ steps.get_version.outputs.version }}"
         BIN_DIR="$(stack path --local-install-root)/bin"
         EXE=$(cd "${BIN_DIR}"; ls goldplate*)
         echo "PLATFORM = ${PLATFORM}"
@@ -63,24 +64,27 @@ jobs:
         cp "${BIN_DIR}/${EXE}" .
         tar -czf goldplate.tar.gz "${EXE}"
         mkdir -p artifacts
-        mv goldplate.tar.gz artifacts/goldplate-$VERSION-$PLATFORM-x86_64.tar.gz
+        mv goldplate.tar.gz "artifacts/goldplate-${VERSION}-${PLATFORM}-x86_64.tar.gz"
 
     - uses: actions/upload-artifact@v3
-      if: startsWith(github.ref, 'refs/tags/v')
+      # if: startsWith(github.ref, 'refs/tags/v')
       with:
         path: artifacts/*
         name: artifacts
+
+    outputs:
+      version: ${{ env.VERSION }}
 
   release:
     name: Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - name: Get the version
-      id: get_version
-      run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
+    # - name: Get the version
+    #   id: get_version
+    #   run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
     - uses: actions/download-artifact@v3
       with:
@@ -90,10 +94,12 @@ jobs:
       run: ls -R
 
     - uses: softprops/action-gh-release@v1
+      env:
+        VERSION: ${{ needs.build.outputs.version }}
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         files: |
-          goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-          goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-          goldplate-${{ steps.get_version.outputs.version }}-windows-x86_64.tar.gz
+          goldplate-${{ env.VERSION }}-linux-x86_64.tar.gz
+          goldplate-${{ env.VERSION }}-darwin-x86_64.tar.gz
+          goldplate-${{ env.VERSION }}-windows-x86_64.tar.gz
         generate_release_notes: true
