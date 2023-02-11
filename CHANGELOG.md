@@ -1,5 +1,8 @@
 # CHANGELOG
 
+ -  0.3.0 (2023-02-11)
+     *  Use `/` as path separator even under Windows (by Andreas Abel)
+
  -  0.2.1 (2022-04-11)
      *  Print summary line at the end of the TAP format
      *  Add -V as an alias for --version (by Andreas Abel)
