@@ -1,5 +1,9 @@
-import System.Exit     ( exitWith  )
-import System.Process  ( system    )
+import System.Environment ( getArgs  )
+import System.Exit        ( exitWith )
+import System.Process     ( system   )
 
 main :: IO ()
-main = exitWith =<< system ("goldplate tests")
+main = do
+  args <- getArgs
+  exitWith =<< do
+    system $ unwords $ "goldplate tests" : args
