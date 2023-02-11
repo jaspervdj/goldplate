@@ -17,19 +17,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
         stack: ["2.9.3"]
         ghc: ["9.2.5"]
 
     steps:
     - name: Get the version
       id: get_version
-      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
+      run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: actions/cache@v2
-      name: Cache ~/.stack
+    - uses: actions/cache@v3
+      name: Cache ~/.stack and .stack-work
       with:
         path: |
           ~/.stack
@@ -38,7 +38,7 @@ jobs:
         restore-keys: "${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-"
 
     - name: Setup Haskell Stack
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         stack-no-global: true
@@ -46,17 +46,26 @@ jobs:
     - name: Build
       run: stack build
 
+    - name: Test
+      run: stack test
+
     - name: Create artifact
-      if: startsWith(github.ref, 'refs/tags/v')
+      # if: startsWith(github.ref, 'refs/tags/v')
       run: |
-        PLATFORM=$(uname | tr 'A-Z' 'a-z')
-        VERSION=${{ steps.get_version.outputs.version }}
-        cp $(stack path --local-install-root)/bin/goldplate goldplate
-        tar -czf goldplate.tar.gz goldplate
+        PLATFORM="$(uname | tr 'A-Z' 'a-z')"
+        VERSION="${{ steps.get_version.outputs.version }}"
+        BIN_DIR="$(stack path --local-install-root)/bin"
+        EXE=$(cd "${BIN_DIR}"; ls goldplate*)
+        echo "PLATFORM = ${PLATFORM}"
+        echo "VERSION  = ${VERSION}"
+        echo "BIN_DIR  = ${BIN_DIR}"
+        echo "EXE      = ${EXE}"
+        cp "${BIN_DIR}/${EXE}" .
+        tar -czf goldplate.tar.gz "${EXE}"
         mkdir -p artifacts
         mv goldplate.tar.gz artifacts/goldplate-$VERSION-$PLATFORM-x86_64.tar.gz
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         path: artifacts/*
@@ -71,39 +80,20 @@ jobs:
     steps:
     - name: Get the version
       id: get_version
-      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
+      run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: artifacts
 
     - name: Display structure of downloaded files
       run: ls -R
 
-    - uses: actions/create-release@v1
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.get_version.outputs.version }}
-        release_name: ${{ steps.get_version.outputs.version }}
-
-    - name: Upload Linux Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_content_type: application/gzip
-
-    - name: Upload MacOS Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_content_type: application/zip
+        token: ${{ secrets.GITHUB_TOKEN }}
+        files: |
+          goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
+          goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
+          goldplate-${{ steps.get_version.outputs.version }}-windows-x86_64.tar.gz
+        generate_release_notes: true
