@@ -25,8 +25,8 @@ jobs:
 
     - uses: actions/checkout@v3
 
-    - uses: actions/cache@v3
-      name: Cache ~/.stack and .stack-work
+    - name: Restore ~/.stack and .stack-work
+      uses: actions/cache/restore@v3
       with:
         path: |
           ~/.stack
@@ -42,6 +42,15 @@ jobs:
 
     - name: Build
       run: stack build
+
+    - name: Cache ~/.stack and .stack-work
+      uses: actions/cache/save@v3
+      with:
+        path: |
+          ~/.stack
+          .stack-work
+        key:          "${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}"
+      continue-on-error: true
 
     - name: Test
       run: stack test
