@@ -1,8 +1,10 @@
 # CHANGELOG
 
- -  0.2.1 (2022-04-11)
-     *  Print summary line at the end of the TAP format
-     *  Add -V as an alias for --version (by Andreas Abel)
+ -  0.2.1 (2023-02-11)
+     *  Print summary line at the end of the TAP format.
+     *  Add `--version` option (by Andreas Abel).
+     *  Include testsuite in package (by Andreas Abel).
+     *  Tested with GHC 8.4 - 9.6.1 alpha2.
 
  -  0.2.0 (2021-05-24)
      *  Change output to [Test Anything Protocol](https://testanything.org/).

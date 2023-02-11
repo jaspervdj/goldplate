@@ -4,7 +4,7 @@ Synopsis:      A lightweight golden test runner
 License:       Apache-2.0
 License-file:  LICENSE
 Author:        Jasper Van der Jeugt <jasper@fugue.co>
-Maintainer:    Jasper Van der Jeugt <jasper@fugue.co>
+Maintainer:    Jasper Van der Jeugt <jasper@fugue.co>, Andreas Abel
 Copyright:     2019-2021 Fugue, Inc
 Homepage:      https://github.com/fugue/goldplate
 Bug-reports:   https://github.com/fugue/goldplate/issues
