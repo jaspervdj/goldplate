@@ -1,5 +1,8 @@
 # CHANGELOG
 
+ -  0.3.0 (2023-02-11)
+     *  Use `/` as path separator even under Windows (by Andreas Abel)
+
  -  0.2.1.1 (2023-02-26)
      *  Bump `aeson` dependency upper bound to 2.1.
      *  Tested with GHC 8.4 - 9.6.1 alpha3.
