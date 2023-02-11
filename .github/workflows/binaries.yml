@@ -20,31 +20,34 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         stack: ["2.9.3"]
         ghc: ["9.2.5"]
+          # The GHC version has to match the one in the stack.yaml file.
+    env:
+      STACK: "stack --system-ghc"
 
     steps:
 
     - uses: actions/checkout@v3
 
-    - name: Restore ~/.stack and .stack-work
+    - name: Setup Haskell Stack
+      uses: haskell/actions/setup@v2
+      id:   setup
+      with:
+        enable-stack:  true
+        stack-version: ${{ matrix.stack }}
+        ghc-version:   ${{ matrix.ghc   }}
+
+    - name: Restore ~/.stack
       uses: actions/cache/restore@v3
       id:   cache
       with:
-        path: |
-          ~/.stack
-          .stack-work
+        path:         ${{ steps.setup.outputs.stack-root }}
         key:          ${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}
         restore-keys: ${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-
 
-    - name: Setup Haskell Stack
-      uses: haskell/actions/setup@v2
-      with:
-        enable-stack: true
-        stack-no-global: true
-
     - name: Build
-      run: stack build
+      run: ${STACK} build
 
-    - name: Cache ~/.stack and .stack-work
+    - name: Cache ~/.stack
       uses: actions/cache/save@v3
       # Reevaluate key.
       env:
@@ -52,15 +55,13 @@ jobs:
       # Will fail if we already have a cache with this key.
       if:   ${{ !(steps.cache.outputs.cache-hit && env.key == steps.cache.outputs.cache-matched-key) }}
       with:
-        path: |
-          ~/.stack
-          .stack-work
+        path: ${{ steps.setup.outputs.stack-root }}
         key:  ${{ env.key }}
       # Should not error.
       # continue-on-error: true
 
     - name: Test
-      run: stack test
+      run: ${STACK} test
 
     - name: Get goldplate version
       run: |
@@ -71,7 +72,7 @@ jobs:
       # if: startsWith(github.ref, 'refs/tags/v')
       run: |
         PLATFORM="$(uname | tr 'A-Z' 'a-z')"
-        BIN_DIR="$(stack path --local-install-root)/bin"
+        BIN_DIR="$(${STACK} path --local-install-root)/bin"
         EXE=$(cd "${BIN_DIR}"; ls goldplate*)
         echo "PLATFORM = ${PLATFORM}"
         echo "VERSION  = ${VERSION}"
