@@ -33,17 +33,6 @@ jobs:
 
     - uses: actions/checkout@v3
 
-    - name: Setup MSYS2 (Windows)
-      if:   ${{ runner.os == 'Windows' }}
-      run:  echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" >> "${GITHUB_PATH}"
-
-    - name: Info about command-line tools used in test-suite
-      run:  |
-        which bash
-        which cat
-        which echo
-      continue-on-error: true
-
     - name: Setup Haskell Stack
       uses: haskell/actions/setup@v2
       id:   setup
@@ -75,6 +64,38 @@ jobs:
         key:  ${{ env.key }}
       # Should not error.
       # continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite
+      run:  |
+        which bash
+        which cat
+        which echo
+      continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite (via stack exec)
+      run:  |
+        ${STACK} exec which bash
+        ${STACK} exec which cat
+        ${STACK} exec which echo
+      continue-on-error: true
+
+    - name: Setup MSYS2 (Windows)
+      if:   ${{ runner.os == 'Windows' }}
+      run:  echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" >> "${GITHUB_PATH}"
+
+    - name: Info about command-line tools used in test-suite
+      run:  |
+        which bash
+        which cat
+        which echo
+      continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite (via stack exec)
+      run:  |
+        ${STACK} exec which bash
+        ${STACK} exec which cat
+        ${STACK} exec which echo
+      continue-on-error: true
 
     - name: Test
       run: ${STACK} test --test-arguments --diff
