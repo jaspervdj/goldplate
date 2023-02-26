@@ -1,10 +1,14 @@
 # CHANGELOG
 
- -  0.2.1 (2023-02-11)
+ -  0.2.1.1 (2023-02-26)
+     *  Bump `aeson` dependency upper bound to 2.1.
+     *  Tested with GHC 8.4 - 9.6.1 alpha3.
+
+ -  0.2.1 (2022-04-12, github release only)
      *  Print summary line at the end of the TAP format.
      *  Add `--version` option (by Andreas Abel).
      *  Include testsuite in package (by Andreas Abel).
-     *  Tested with GHC 8.4 - 9.6.1 alpha2.
+     *  Tested with GHC 8.4 - 9.2.
 
  -  0.2.0 (2021-05-24)
      *  Change output to [Test Anything Protocol](https://testanything.org/).
