@@ -218,6 +218,7 @@ jobs:
           EOF
           if $HEADHACKAGE; then
           echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> cabal.project
+          echo "constraints: base-compat >= 0.12.2" >> cabal.project
           fi
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(goldplate)$/; }' >> cabal.project.local
           cat cabal.project
