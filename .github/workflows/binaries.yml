@@ -11,99 +11,149 @@ on:
       - master
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
         stack: ["2.9.3"]
         ghc: ["9.2.5"]
+          # The GHC version has to match the one in the stack.yaml file.
+    env:
+      STACK: "stack --system-ghc"
 
     steps:
-    - name: Get the version
-      id: get_version
-      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
 
-    - uses: actions/checkout@v2
-
-    - uses: actions/cache@v2
-      name: Cache ~/.stack
-      with:
-        path: |
-          ~/.stack
-          .stack-work
-        key:          "${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}"
-        restore-keys: "${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-"
+    - uses: actions/checkout@v3
 
     - name: Setup Haskell Stack
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
+      id:   setup
       with:
-        enable-stack: true
-        stack-no-global: true
+        enable-stack:  true
+        stack-version: ${{ matrix.stack }}
+        ghc-version:   ${{ matrix.ghc   }}
+
+    - name: Restore cache
+      uses: actions/cache/restore@v3
+      id:   cache
+      with:
+        path:         ${{ steps.setup.outputs.stack-root }}
+        key:          ${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}
+        restore-keys: ${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-
 
     - name: Build
-      run: stack build
+      run: ${STACK} build
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      # Reevaluate key.
+      env:
+        key: ${{ runner.os }}-stack-${{ matrix.stack }}-ghc-${{ matrix.ghc }}-${{ hashFiles('goldplate.cabal', 'stack.yaml', 'stack.yaml.lock') }}
+      # Will fail if we already have a cache with this key.
+      if:   ${{ !(steps.cache.outputs.cache-hit && env.key == steps.cache.outputs.cache-matched-key) }}
+      with:
+        path: ${{ steps.setup.outputs.stack-root }}
+        key:  ${{ env.key }}
+      # Should not error.
+      # continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite
+      run:  |
+        which bash
+        which cat
+        which echo
+      continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite (via stack exec)
+      run:  |
+        ${STACK} exec which bash
+        ${STACK} exec which cat
+        ${STACK} exec which echo
+      continue-on-error: true
+
+    - name: Setup MSYS2 (Windows)
+      if:   ${{ runner.os == 'Windows' }}
+      run:  echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" >> "${GITHUB_PATH}"
+
+    - name: Info about command-line tools used in test-suite
+      run:  |
+        which bash
+        which cat
+        which echo
+      continue-on-error: true
+
+    - name: Info about command-line tools used in test-suite (via stack exec)
+      run:  |
+        ${STACK} exec which bash
+        ${STACK} exec which cat
+        ${STACK} exec which echo
+      continue-on-error: true
+
+    - name: Test
+      run: ${STACK} test --test-arguments --diff
+
+    - name: Get goldplate version
+      run: |
+        VERSION="$(${STACK} run -- --numeric-version | tail -1)"
+        echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
 
     - name: Create artifact
-      if: startsWith(github.ref, 'refs/tags/v')
+      # if: startsWith(github.ref, 'refs/tags/v')
       run: |
-        PLATFORM=$(uname | tr 'A-Z' 'a-z')
-        VERSION=${{ steps.get_version.outputs.version }}
-        cp $(stack path --local-install-root)/bin/goldplate goldplate
-        tar -czf goldplate.tar.gz goldplate
+        PLATFORM="$(uname | tr 'A-Z' 'a-z')"
+        BIN_DIR="$(${STACK} path --local-install-root)/bin"
+        EXE=$(cd "${BIN_DIR}"; ls goldplate*)
+        echo "PLATFORM = ${PLATFORM}"
+        echo "VERSION  = ${VERSION}"
+        echo "BIN_DIR  = ${BIN_DIR}"
+        echo "EXE      = ${EXE}"
+        cp "${BIN_DIR}/${EXE}" .
+        tar -czf goldplate.tar.gz "${EXE}"
         mkdir -p artifacts
-        mv goldplate.tar.gz artifacts/goldplate-$VERSION-$PLATFORM-x86_64.tar.gz
+        mv goldplate.tar.gz "artifacts/goldplate-${VERSION}-${PLATFORM}-x86_64.tar.gz"
 
-    - uses: actions/upload-artifact@v2
-      if: startsWith(github.ref, 'refs/tags/v')
+    - uses: actions/upload-artifact@v3
+      # if: startsWith(github.ref, 'refs/tags/v')
       with:
         path: artifacts/*
         name: artifacts
+
+    outputs:
+      version: ${{ env.VERSION }}
 
   release:
     name: Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - name: Get the version
-      id: get_version
-      run: 'echo ::set-output name=version::${GITHUB_REF#refs/tags/}'
+    # - name: Get the version
+    #   id: get_version
+    #   run: echo version="${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: artifacts
 
     - name: Display structure of downloaded files
       run: ls -R
 
-    - uses: actions/create-release@v1
-      id: create_release
+    - uses: softprops/action-gh-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ needs.build.outputs.version }}
       with:
-        tag_name: ${{ steps.get_version.outputs.version }}
-        release_name: ${{ steps.get_version.outputs.version }}
-
-    - name: Upload Linux Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_content_type: application/gzip
-
-    - name: Upload MacOS Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_content_type: application/zip
+        token: ${{ secrets.GITHUB_TOKEN }}
+        files: |
+          goldplate-${{ env.VERSION }}-linux-x86_64.tar.gz
+          goldplate-${{ env.VERSION }}-darwin-x86_64.tar.gz
+          goldplate-${{ env.VERSION }}-windows-x86_64.tar.gz
+        generate_release_notes: true
