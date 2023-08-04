@@ -3,11 +3,11 @@ Version:       0.2.1.1
 Synopsis:      A lightweight golden test runner
 License:       Apache-2.0
 License-file:  LICENSE
-Author:        Jasper Van der Jeugt <jasper@fugue.co>
-Maintainer:    Jasper Van der Jeugt <jasper@fugue.co>, Andreas Abel
+Author:        Jasper Van der Jeugt <m@jaspervdj.be>
+Maintainer:    Jasper Van der Jeugt, Andreas Abel
 Copyright:     2019-2021 Fugue, Inc
-Homepage:      https://github.com/fugue/goldplate
-Bug-reports:   https://github.com/fugue/goldplate/issues
+Homepage:      https://github.com/jaspervdj/goldplate
+Bug-reports:   https://github.com/jaspervdj/goldplate/issues
 Category:      Language
 Build-type:    Simple
 Cabal-version: 1.18
@@ -29,11 +29,11 @@ Extra-source-files:
 
 Source-repository head
   type:     git
-  location: https://github.com/fugue/goldplate.git
+  location: https://github.com/jaspervdj/goldplate.git
 
 Source-repository this
   type:     git
-  location: https://github.com/fugue/goldplate.git
+  location: https://github.com/jaspervdj/goldplate.git
   tag:      v0.2.1.1
 
 Library
