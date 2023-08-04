@@ -9,9 +9,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Goldplate
     ( main
+
+    , Spec (..)
+    , Assert (..)
     ) where
 
-import           Control.Applicative       ((<|>))
+import           Control.Applicative       (optional, (<|>))
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
 import           Control.Exception         (finally, throwIO)
@@ -27,6 +30,7 @@ import           Data.Function             (on)
 import qualified Data.HashMap.Strict       as HMS
 import qualified Data.IORef                as IORef
 import qualified Data.List                 as List
+import           Data.Maybe                (catMaybes)
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import           Data.Version              (showVersion)
@@ -143,22 +147,29 @@ data Assert a
     deriving (Foldable, Functor, Traversable)
 
 instance A.FromJSON a => A.FromJSON (Assert a) where
-    parseJSON = A.withObject "FromJSON Assert" $ \o ->
-        (ExitCodeAssert <$> o A..: "exit_code") <|>
-        (StdoutAssert <$> o A..: "stdout" <*> pp o) <|>
-        (StderrAssert <$> o A..: "stderr" <*> pp o) <|>
-        (CreatedFileAssert
-            <$> o A..: "created_file" <*> o A..:? "contents" <*> pp o) <|>
-        (CreatedDirectoryAssert <$> o A..: "created_directory")
+    parseJSON = A.withObject "FromJSON Assert" $ \o -> do
+        options <- sequenceA $ map optional
+            [ ExitCodeAssert <$> o A..: "exit_code"
+            , StdoutAssert <$> o A..: "stdout" <*> pp o
+            , StderrAssert <$> o A..: "stderr" <*> pp o
+            , CreatedFileAssert
+                <$> o A..: "created_file" <*> o A..:? "contents" <*> pp o
+            , CreatedDirectoryAssert <$> o A..: "created_directory"
+            ]
+        case catMaybes options of
+            [opt] -> pure opt
+            []    -> fail "no assert discriminator"
+            opts  -> fail $ "multiple assert discriminators: " ++
+                List.intercalate ", " (map assertDiscriminator opts)
       where
         pp o = maybe [] multipleToList <$> o A..:? "post_process"
 
-describeAssert :: Assert a -> String
-describeAssert (ExitCodeAssert     _)     = "exit_code"
-describeAssert (StdoutAssert       _ _)   = "stdout"
-describeAssert (StderrAssert       _ _)   = "stderr"
-describeAssert (CreatedFileAssert  _ _ _) = "created_file"
-describeAssert (CreatedDirectoryAssert _) = "created_directory"
+assertDiscriminator :: Assert a -> String
+assertDiscriminator (ExitCodeAssert     _)     = "exit_code"
+assertDiscriminator (StdoutAssert       _ _)   = "stdout"
+assertDiscriminator (StderrAssert       _ _)   = "stderr"
+assertDiscriminator (CreatedFileAssert  _ _ _) = "created_file"
+assertDiscriminator (CreatedDirectoryAssert _) = "created_directory"
 
 --------------------------------------------------------------------------------
 
@@ -379,7 +390,7 @@ runAssert env execution@Execution {..} ExecutionResult {..} assert =
                     pure $ makeAssertResult True []
   where
     makeAssertResult ok = AssertResult ok
-        (executionHeader execution ++ describeAssert assert)
+        (executionHeader execution ++ assertDiscriminator assert)
 
     inExecutionDir :: FilePath -> FilePath
     inExecutionDir fp =
