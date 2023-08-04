@@ -21,8 +21,8 @@ Give `goldplate` a try if:
  -  The application is quick to start (a process is created for every test)
  -  Your output is text-based and not huge in size
 
-At [Fugue](https://fugue.co), we've been using internal versions of this tool
-since 2016, so it should be pretty stable.
+At [Fugue](https://www.fugue.co/), we've been using internal versions of this
+tool since 2016, so it should be pretty stable.
 
 `goldplate` produces output compatible with the [Test Anything Protocol].
 
@@ -213,7 +213,7 @@ to leave a clean repository behind.
 ## Installation
 
 Binaries for Mac OS and Linux are available on the
-[releases page](https://github.com/fugue/goldplate/releases).
+[releases page](https://github.com/jaspervdj/goldplate/releases).
 
 Installation from source is done using standard Haskell tooling -- [Cabal]
 and [stack] both work well.
