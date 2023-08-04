@@ -76,4 +76,4 @@ Test-suite tests
   Main-is:            Tests.hs
   Build-tool-depends: goldplate:goldplate
   Hs-source-dirs:     tests
-  Build-depends:      base, process
+  Build-depends:      aeson, base, bytestring, goldplate, process
