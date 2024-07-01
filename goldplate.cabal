@@ -1,5 +1,5 @@
 Name:          goldplate
-Version:       0.2.1.1
+Version:       0.3.0
 Synopsis:      A lightweight golden test runner
 License:       Apache-2.0
 License-file:  LICENSE
@@ -36,7 +36,7 @@ Source-repository head
 Source-repository this
   type:     git
   location: https://github.com/jaspervdj/goldplate.git
-  tag:      v0.2.1.1
+  tag:      v0.3.0
 
 Library
   Hs-source-dirs:    src
