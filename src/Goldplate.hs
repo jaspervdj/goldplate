@@ -10,6 +10,10 @@
 module Goldplate
     ( main
 
+    , Options
+    , defaultOptions
+    , mainWith
+
     , Spec (..)
     , Assert (..)
     ) where
@@ -17,7 +21,7 @@ module Goldplate
 import           Control.Applicative       (optional, (<|>))
 import qualified Control.Concurrent.Async  as Async
 import qualified Control.Concurrent.MVar   as MVar
-import           Control.Exception         (finally, throwIO)
+import           Control.Exception         (Exception, finally, throwIO)
 import           Control.Monad             (forM, forM_, mzero, unless, when)
 import qualified Data.Aeson                as A
 import qualified Data.Aeson.Encode.Pretty  as Aeson.Pretty
@@ -38,7 +42,7 @@ import qualified Options.Applicative       as OA
 import           Paths_goldplate           (version)
 import qualified System.Directory          as Dir
 import           System.Environment        (getEnvironment)
-import           System.Exit               (ExitCode (..), exitFailure)
+import           System.Exit               (ExitCode (..), exitWith)
 import qualified System.FilePath           as FP
 import qualified System.FilePath.Glob      as Glob
 import qualified System.IO                 as IO
@@ -467,6 +471,16 @@ data Options = Options
     , oJobs       :: Int
     }
 
+defaultOptions :: Options
+defaultOptions = Options
+    { oPaths      = []
+    , oVerbose    = False
+    , oDiff       = False
+    , oPrettyDiff = False
+    , oFix        = False
+    , oJobs       = 1
+    }
+
 parseOptions :: OA.Parser Options
 parseOptions = Options
     <$> OA.some (OA.strArgument (
@@ -486,8 +500,8 @@ parseOptions = Options
             OA.help    "Attempt to fix broken tests")
     <*> OA.option OA.auto (
             OA.long    "jobs" <>
-            OA.short   'j'    <>
-            OA.value   1      <>
+            OA.short   'j' <>
+            OA.value   (oJobs defaultOptions) <>
             OA.help    "Number of worker jobs")
 
 parserInfo :: OA.ParserInfo Options
@@ -520,9 +534,12 @@ worker pool f = do
 
 --------------------------------------------------------------------------------
 
-main :: IO ()
-main = do
-    options <- OA.execParser parserInfo
+data InvalidSpec = InvalidSpec FilePath deriving (Show)
+
+instance Exception InvalidSpec
+
+mainWith :: Options -> IO ExitCode
+mainWith options = do
     failed  <- IORef.newIORef (0 :: Int)
     env     <- Env
         <$> makeLogger (oVerbose options)
@@ -539,7 +556,7 @@ main = do
             Left  !err  -> do
                 logError (envLogger env)
                     [specPath ++ ": could not parse JSON: " ++ err]
-                exitFailure
+                throwIO $ InvalidSpec specPath
 
     -- Each spec might produce a number of executions.  We can't really
     -- parallelize this because 'specExecutions' needs to change the working
@@ -570,4 +587,9 @@ main = do
     logOut (envLogger env) . pure $
         "# goldplate ran " ++ show numAsserts ++ " asserts, " ++
         (if numFailed > 0 then show numFailed ++ " failed" else "all OK")
-    when (numFailed > 0) exitFailure
+    pure $ if numFailed > 0 then ExitFailure 1 else ExitSuccess
+
+main :: IO ()
+main = do
+    options <- OA.execParser parserInfo
+    mainWith options >>= exitWith

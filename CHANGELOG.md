@@ -1,5 +1,9 @@
 # CHANGELOG
 
+ -  0.2.2.0 (unreleased)
+     *  Expose `Options`, `defaultOptions` and `mainWith` from `Goldplate`
+        module so it's easy to call from Haskell test suites.
+
  -  0.2.1.1 (2023-02-26)
      *  Bump `aeson` dependency upper bound to 2.1.
      *  Tested with GHC 8.4 - 9.6.1 alpha3.
