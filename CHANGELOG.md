@@ -1,6 +1,6 @@
 # CHANGELOG
 
- -  0.2.2.0 (unreleased)
+ -  0.2.2.0 (2024-09-30)
      *  Expose `Options`, `defaultOptions` and `mainWith` from `Goldplate`
         module so it's easy to call from Haskell test suites.
 
