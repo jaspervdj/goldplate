@@ -83,30 +83,10 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R
 
-    - uses: actions/create-release@v1
-      id: create_release
+    - uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        files: 'artifacts-*/goldplate-*'
         tag_name: ${{ steps.get_version.outputs.version }}
         release_name: ${{ steps.get_version.outputs.version }}
-
-    - name: Upload Linux Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-linux-x86_64.tar.gz
-        asset_content_type: application/gzip
-
-    - name: Upload MacOS Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_name: goldplate-${{ steps.get_version.outputs.version }}-darwin-x86_64.tar.gz
-        asset_content_type: application/zip
