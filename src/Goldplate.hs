@@ -10,7 +10,7 @@
 module Goldplate
     ( main
 
-    , Options
+    , Options (..)
     , defaultOptions
     , mainWith
 
