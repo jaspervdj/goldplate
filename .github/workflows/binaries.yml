@@ -18,8 +18,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest]
-        stack: ["2.9.3"]
-        ghc: ["9.2.5"]
+        stack: [latest]
+        ghc: ["9.10.2"]
 
     steps:
     - name: Get the version
@@ -28,7 +28,7 @@ jobs:
 
     - uses: actions/checkout@v4
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: Cache ~/.stack
       with:
         path: |
@@ -83,10 +83,9 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R
 
-    - uses: softprops/action-gh-release@v1
+    - uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: 'artifacts-*/goldplate-*'
         tag_name: ${{ steps.get_version.outputs.version }}
-        release_name: ${{ steps.get_version.outputs.version }}
